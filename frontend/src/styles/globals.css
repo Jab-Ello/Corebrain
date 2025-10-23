@@ -1,0 +1,17 @@
+@import "tailwindcss";
+
+/* your variables and styles */
+:root {
+  --bg: #0b1220;
+  --card-bg: #0f1b34;
+  --border: rgba(255, 255, 255, 0.10);
+  --border-strong: rgba(255, 255, 255, 0.15);
+}
+html, body { background: var(--bg); color: white; }
+
+/* Better focus outlines for accessibility */
+*:focus-visible {
+outline: none;
+box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4); /* indigo-500/40 */
+border-radius: 0.5rem;
+}
