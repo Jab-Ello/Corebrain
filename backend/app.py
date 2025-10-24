@@ -1,38 +1,44 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
+# backend/app.py (extrait)
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-
-import os
+from fastapi.staticfiles import StaticFiles
+from starlette.responses import FileResponse
+from pathlib import Path
 
 app = FastAPI()
 
+# CORS si besoin pour dev Next sur :3000
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # pendant le dev uniquement
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
 )
 
-frontend_path = os.path.join(os.path.dirname(__file__), "frontend_dist")
-# sert les fichiers statiques (JS, CSS…)
-app.mount("/assets", StaticFiles(directory=os.path.join(frontend_path, "assets")), name="assets")
+# >>> AJOUT ICI : inclure le router de l’agent
+from routes.agent import router as agent_router
+app.include_router(agent_router)
+# <<<
 
-# renvoie l'index.html pour la racine
-@app.get("/")
-def main():
-    index_file = os.path.join(frontend_path, "index.html")
-    if os.path.exists(index_file):
-        return FileResponse(index_file, media_type="text/html")
-    raise HTTPException(status_code=404, detail="Index not found")
+# --- servir le build frontend depuis backend/frontend_dist ---
+BASE_DIR = Path(__file__).resolve().parent
+FRONTEND_DIST = BASE_DIR / "frontend_dist"
+INDEX_FILE = FRONTEND_DIST / "index.html"
 
-# fallback SPA : toutes les routes (sauf /api/* et /assets/*) renvoient index.html
-@app.get("/{full_path:path}")
+for sub in ["_next", "assets", "static"]:
+    p = FRONTEND_DIST / sub
+    if p.exists():
+        app.mount(f"/{sub}", StaticFiles(directory=p), name=sub)
+
+@app.get("/", include_in_schema=False)
+def root():
+    return FileResponse(INDEX_FILE)
+
+# Fallback SPA pour GET uniquement
+@app.get("/{full_path:path}", include_in_schema=False)
 def spa_fallback(full_path: str):
-    if full_path.startswith("api/") or full_path.startswith("assets/"):
-        raise HTTPException(status_code=404)
-    index_file = os.path.join(frontend_path, "index.html")
-    if os.path.exists(index_file):
-        return FileResponse(index_file, media_type="text/html")
-    raise HTTPException(status_code=404, detail="Index not found")
+    candidate = FRONTEND_DIST / full_path
+    if candidate.is_dir():
+        candidate = candidate / "index.html"
+    if candidate.exists():
+        return FileResponse(candidate)
+    return FileResponse(INDEX_FILE)

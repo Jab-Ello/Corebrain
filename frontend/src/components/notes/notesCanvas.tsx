@@ -33,7 +33,7 @@ export default function NotesCanvas({
   }, [notes]);
 
   const filtered = useMemo(() => {
-    let out = notes.filter(n => {
+    const out = notes.filter(n => {
       const byTag = selectedTag === "All" || n.tags.includes(selectedTag);
       const q = query.trim().toLowerCase();
       const byQuery =
