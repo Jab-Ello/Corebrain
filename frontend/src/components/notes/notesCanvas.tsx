@@ -6,7 +6,7 @@ export type Note = {
   title: string;
   content: string;
   tags: string[];
-  createdAt: string; // ISO
+  createdAt: string; 
 };
 
 type SortKey = "newest" | "oldest" | "tag";
@@ -53,7 +53,6 @@ export default function NotesCanvas({
 
   return (
     <div className="min-h-[60vh]">
-      {/* Header */}
       <div className="flex items-center justify-between gap-3 py-4">
         <h2 className="text-xl font-semibold text-white">{title}</h2>
         <div className="flex items-center gap-2">
@@ -74,11 +73,8 @@ export default function NotesCanvas({
           </button>
         </div>
       </div>
-
-      {/* Filters */}
       <div className="pb-3 border-b border-white/10">
         <div className="flex items-center gap-3">
-          {/* Tags (scrollable) */}
           <div className="flex-1 overflow-x-auto">
             <div className="flex items-center gap-2 min-w-max pb-1">
               {allTags.map((t) => {
@@ -100,8 +96,6 @@ export default function NotesCanvas({
               })}
             </div>
           </div>
-
-          {/* Sort */}
           <div className="shrink-0">
             <label className="sr-only" htmlFor="sort">Sort</label>
             <select
@@ -116,8 +110,6 @@ export default function NotesCanvas({
             </select>
           </div>
         </div>
-
-        {/* Mobile search */}
         <div className="sm:hidden mt-3">
           <input
             value={query}
@@ -127,8 +119,6 @@ export default function NotesCanvas({
           />
         </div>
       </div>
-
-      {/* Grid */}
       <section className="py-6">
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((n) => (
