@@ -1,16 +1,13 @@
 'use client';
 export const dynamic = 'force-dynamic'; // évite les erreurs de prerender
 
-import { Suspense, useMemo, useState } from "react";
-"use client";
 import { useMemo, useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
-import NotesCanvas, { Note } from "../../components/notes/notesCanvas"; 
+import NotesCanvas, { Note } from "../../components/notes/notesCanvas";
 import NotesTabs, { Scope } from "../../components/notes/notesTab";
 
-/* ---------------------------------- */
-/*  Données initiales (par onglet)    */
-/* ---------------------------------- */
+type NewNotePayload = { title: string; content: string; tags: string[] };
+
 const DATA_INIT: Record<Scope, Note[]> = {
   projects: [
     { id: "p1", title: "Kickoff", content: "Timeline & milestones…", tags: ["Meetings"], createdAt: "2025-10-12" },
@@ -26,13 +23,6 @@ const DATA_INIT: Record<Scope, Note[]> = {
     { id: "x1", title: "Retro", content: "What went well…", tags: ["Reflections"], createdAt: "2025-09-29" },
   ],
 };
-
-// Séparer la logique dans un composant enfant
-function NotesContent() {
-/* ---------------------------------- */
-/*  Modal local (dans ce fichier)     */
-/* ---------------------------------- */
-type NewNotePayload = { title: string; content: string; tags: string[] };
 
 function NewNoteModal({
   open,
@@ -188,9 +178,6 @@ function NewNoteModal({
   );
 }
 
-/* ---------------------------------- */
-/*  Page principale /notes            */
-/* ---------------------------------- */
 export default function GlobalNotesPage() {
   const sp = useSearchParams();
   const initialTab = (sp.get("tab") as Scope) || "projects";
@@ -225,7 +212,6 @@ export default function GlobalNotesPage() {
           </p>
         </header>
 
-        <NotesTabs initial={initialTab} onChange={setScope} />
         <NotesTabs initial={initialTab} onChange={(s: Scope) => setScope(s)} />
 
         <NotesCanvas
@@ -243,13 +229,5 @@ export default function GlobalNotesPage() {
         accent="#2151ff"
       />
     </div>
-  );
-}
-
-export default function GlobalNotesPage() {
-  return (
-    <Suspense fallback={<div className="p-6 text-gray-400">Chargement des notes...</div>}>
-      <NotesContent />
-    </Suspense>
   );
 }

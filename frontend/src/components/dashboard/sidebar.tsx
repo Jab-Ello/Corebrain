@@ -1,7 +1,5 @@
-// src/components/dashboard/Sidebar.tsx
 import Link from "next/link";
 
-// Small helper for emojis (swap later for real icons if you want)
 function iconFor(label: string) {
   const map: Record<string, string> = {
     Dashboard: "🏠",
@@ -19,13 +17,10 @@ export default function Sidebar() {
       aria-label="Primary"
       className="w-[260px] min-w-[260px] bg-[var(--bg)] border-r border-[var(--border)] p-6 hidden lg:flex lg:flex-col"
     >
-      {/* Brand */}
       <div className="flex items-center gap-3 text-xl font-black tracking-tight mb-6">
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10">🧠</span>
         <span>SecondBrain</span>
       </div>
-
-      {/* Search */}
       <div className="relative mb-4">
         <label htmlFor="search" className="sr-only">
           Search your SecondBrain
@@ -36,8 +31,6 @@ export default function Sidebar() {
           className="w-full rounded-xl bg-white/5 border border-[var(--border)] px-4 py-2 text-sm placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
         />
       </div>
-
-      {/* Nav */}
       <nav className="space-y-1 text-sm">
         {[
           { href: "/", label: "Dashboard" },
@@ -56,8 +49,6 @@ export default function Sidebar() {
           </Link>
         ))}
       </nav>
-
-      {/* Current projects */}
       <div className="mt-8">
         <h4 className="text-white/60 text-xs uppercase tracking-wider mb-3">Current projects</h4>
         <ul className="space-y-2 text-sm">
@@ -76,8 +67,6 @@ export default function Sidebar() {
           ))}
         </ul>
       </div>
-
-      {/* User block */}
       <div className="mt-auto pt-6 space-y-6">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-full bg-white/10 grid place-items-center">👤</div>
