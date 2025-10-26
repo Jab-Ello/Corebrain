@@ -18,18 +18,12 @@ class ChatRequest(BaseModel):
 @router.post("/chat")
 def chat_with_agent(request: ChatRequest):
     try:
-        # 1) conversation
         conv_id = get_or_create_conversation(request.user_id, request.conversation_id)
-
-        # 2) historique + nouveau message user
         history = get_conversation_history(conv_id)
         add_message(conv_id, "user", request.message)
 
-        # 3) appel LLM
         messages = history + [{"role": "user", "content": request.message}]
         reply = get_llm_response(messages)
-
-        # 4) persistance réponse
         add_message(conv_id, "assistant", reply)
 
         return {"reply": reply, "conversation_id": conv_id}

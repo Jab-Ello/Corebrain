@@ -1,9 +1,6 @@
-# Manages the recording and storage of notes# backend/services/storage_services.py
-# Stockage minimal en RAM pour démarrer (remplace ensuite par ta DB)
+# Stockage minimal en RAM pour démarrer (faut remplacer par la vraie DB plus tard si jamais)
 
 from typing import Dict, List
-
-# conversations[conv_id] = [{"role": "...", "content": "..."}]
 _conversations: Dict[str, List[dict]] = {}
 
 def get_conversation(conv_id: str) -> List[dict]:

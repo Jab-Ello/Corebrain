@@ -1,4 +1,3 @@
-# backend/services/conversation_services.py
 from typing import List, Optional
 from .storage_services import get_conversation, create_conversation, add_message as _add_message
 
@@ -7,7 +6,6 @@ SYSTEM_PROMPT = "Tu es un assistant utile, concis et amical."
 def get_or_create_conversation(user_id: str, conversation_id: Optional[str]) -> str:
     """
     Retourne l'ID de conversation. Si rien fourni, on crée un ID simple basé sur le user.
-    Remplace cette logique par une vraie génération/DB quand tu veux.
     """
     conv_id = conversation_id or f"{user_id}-conv"
     create_conversation(conv_id)

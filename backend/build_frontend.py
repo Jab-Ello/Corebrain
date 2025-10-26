@@ -12,17 +12,15 @@ def run(cmd, cwd=None):
     subprocess.run(cmd, cwd=cwd, check=True)
 
 def main():
-    # 1) Build + export Next (génère frontend/out)
-    run(["npm", "install"], cwd=FRONTEND)          # respecte ton package-lock.json
-    run(["npm", "run", "build"], cwd=FRONTEND)     # next build
-    run(["npx", "next", "export"], cwd=FRONTEND)   # next export → out/
+    run(["npm", "install"], cwd=FRONTEND)
+    run(["npm", "run", "build"], cwd=FRONTEND)
+    run(["npx", "next", "export"], cwd=FRONTEND)
 
-    # 2) Copie vers backend/frontend_dist (clean + copy)
     if DIST.exists():
         shutil.rmtree(DIST)
     DIST.mkdir(parents=True, exist_ok=True)
     shutil.copytree(OUT, DIST, dirs_exist_ok=True)
-    print(f"✅ Copié: {OUT} → {DIST}")
+    print(f"Copié: {OUT} → {DIST}")
 
 if __name__ == "__main__":
     main()
