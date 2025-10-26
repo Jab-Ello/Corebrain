@@ -19,8 +19,14 @@ app.add_middleware(
 
 from routes.agent import router as agent_router
 from routes.user import router as user_router
+from routes.project import router as project_router
+from routes.note import router as note_router
+from routes.area import router as area_router
 app.include_router(agent_router)
 app.include_router(user_router)
+app.include_router(project_router)
+app.include_router(note_router)
+app.include_router(area_router)
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST = BASE_DIR / "frontend_dist"

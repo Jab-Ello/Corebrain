@@ -1,4 +1,3 @@
-# backend/database/models.py
 from sqlalchemy import (
     Column, String, Text, Integer, Boolean, DateTime,
     ForeignKey, CheckConstraint, Table
@@ -6,6 +5,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from .database import Base
+
 
 ###############################################################
 # USER MODEL
@@ -20,6 +20,11 @@ class User(Base):
     passwordHash = Column(String)
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # Relations
+    projects = relationship("Project", back_populates="user", cascade="all, delete")
+    notes = relationship("Note", back_populates="user", cascade="all, delete")
+    areas = relationship("Area", back_populates="user", cascade="all, delete")
+
     def __repr__(self):
         return f"<User(name={self.name}, email={self.email})>"
 
@@ -33,7 +38,7 @@ class Project(Base):
     id = Column(String, primary_key=True)
     name = Column(String, nullable=False)
     description = Column(Text)
-    context = Column(Text)  # Contexte global du projet pour l’IA
+    context = Column(Text)
     status = Column(
         String,
         CheckConstraint("status IN ('ACTIVE', 'PAUSED', 'COMPLETED')"),
@@ -48,10 +53,15 @@ class Project(Base):
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
     updatedAt = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # 🔹 Relation : chaque projet appartient à un utilisateur
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user = relationship("User", back_populates="projects")
+
+    # 🔹 Relation : un projet peut avoir plusieurs notes
     notes = relationship("Note", secondary="project_notes", back_populates="projects")
 
     def __repr__(self):
-        return f"<Project(name={self.name}, status={self.status})>"
+        return f"<Project(name={self.name}, user_id={self.user_id}, status={self.status})>"
 
 
 ###############################################################
@@ -67,10 +77,15 @@ class Area(Base):
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
     updatedAt = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # 🔹 Chaque zone appartient à un utilisateur
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user = relationship("User", back_populates="areas")
+
+    # 🔹 Relation N↔N avec les notes
     notes = relationship("Note", secondary="area_notes", back_populates="areas")
 
     def __repr__(self):
-        return f"<Area(name={self.name})>"
+        return f"<Area(name={self.name}, user_id={self.user_id})>"
 
 
 ###############################################################
@@ -88,12 +103,21 @@ class Note(Base):
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
     updatedAt = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # 🔹 Chaque note appartient à un utilisateur
+    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user = relationship("User", back_populates="notes")
+
+    # 🔹 Une note peut être liée à plusieurs projets
     projects = relationship("Project", secondary="project_notes", back_populates="notes")
+
+    # 🔹 Une note peut être liée à plusieurs zones
     areas = relationship("Area", secondary="area_notes", back_populates="notes")
+
+    # 🔹 Une note peut être liée à plusieurs tags
     tags = relationship("Tag", secondary="note_tags", back_populates="notes")
 
     def __repr__(self):
-        return f"<Note(title={self.title}, pinned={self.pinned})>"
+        return f"<Note(title={self.title}, user_id={self.user_id}, pinned={self.pinned})>"
 
 
 ###############################################################
@@ -106,6 +130,7 @@ class Tag(Base):
     name = Column(String, unique=True, nullable=False)
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
 
+    # 🔹 Relation avec les notes
     notes = relationship("Note", secondary="note_tags", back_populates="tags")
 
     def __repr__(self):
