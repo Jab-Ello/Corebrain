@@ -21,16 +21,16 @@ export default function Sidebar() {
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10">🧠</span>
         <span>SecondBrain</span>
       </div>
+
       <div className="relative mb-4">
-        <label htmlFor="search" className="sr-only">
-          Search your SecondBrain
-        </label>
+        <label htmlFor="search" className="sr-only">Search your SecondBrain</label>
         <input
           id="search"
           placeholder="Search your SecondBrain"
           className="w-full rounded-xl bg-white/5 border border-[var(--border)] px-4 py-2 text-sm placeholder:text-white/50 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
         />
       </div>
+
       <nav className="space-y-1 text-sm">
         {[
           { href: "/", label: "Dashboard" },
@@ -49,6 +49,7 @@ export default function Sidebar() {
           </Link>
         ))}
       </nav>
+
       <div className="mt-8">
         <h4 className="text-white/60 text-xs uppercase tracking-wider mb-3">Current projects</h4>
         <ul className="space-y-2 text-sm">
@@ -67,6 +68,7 @@ export default function Sidebar() {
           ))}
         </ul>
       </div>
+
       <div className="mt-auto pt-6 space-y-6">
         <div className="flex items-center gap-3">
           <div className="h-9 w-9 rounded-full bg-white/10 grid place-items-center">👤</div>
@@ -75,14 +77,18 @@ export default function Sidebar() {
             <div className="text-xs text-white/70">username@example.com</div>
           </div>
         </div>
-        <div className="space-y-2 text-sm">
-          <button className="w-full text-left rounded-lg bg-white/5 border border-[var(--border)] px-3 py-2 hover:bg-white/10">
-            Preferences
-          </button>
-          <button className="w-full text-left rounded-lg bg-white/5 border border-[var(--border)] px-3 py-2 hover:bg-white/10">
-            Log out
-          </button>
-        </div>
+      <div className="space-y-2 text-sm">
+        <Link href="/preferences" className="block rounded-lg bg-white/5 border border-[var(--border)] px-3 py-2 hover:bg-white/10">
+          Preferences
+        </Link>
+        <Link href="/login" className="block rounded-lg bg-white/5 border border-[var(--border)] px-3 py-2 hover:bg-white/10">
+          Log in
+        </Link>
+        <Link href="/logout" className="block rounded-lg bg-white/5 border border-[var(--border)] px-3 py-2 hover:bg-white/10">
+          Log out
+        </Link>
+      </div>
+
       </div>
     </aside>
   );
