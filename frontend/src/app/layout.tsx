@@ -4,7 +4,7 @@ import Sidebar from "@/components/dashboard/sidebar";
 
 
 export const metadata: Metadata = {
-title: "SecondBrain",
+title: "CoreBrain",
 description: "Personal knowledge and projects dashboard",
 };
 
