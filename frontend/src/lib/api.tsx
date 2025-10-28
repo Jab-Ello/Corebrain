@@ -1,5 +1,16 @@
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
+export type ProjectCreateBody = {
+  user_id: string;
+  name: string;
+  description?: string | null;
+  context?: string | null;
+  color?: string | null;
+  priority?: number;
+  // envoie une date ISO (ex: "2025-10-28T00:00:00.000Z") si tu l’utilises
+  plannedEndDate?: string | null;
+};
+
 export type Project = {
   id: string;
   name: string;
@@ -36,6 +47,7 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+    
   // CRUD utiles
   createUser: (b: { name: string; email: string; password: string; avatarUrl?: string }) =>
     request<User>("/users/", { method: "POST", body: JSON.stringify(b) }),
@@ -44,5 +56,11 @@ export const api = {
   updateUser: (id: string, b: Partial<{ name: string; avatarUrl: string; password: string }>) =>
     request<User>(`/users/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteUser: (id: string) => request(`/users/${id}`, { method: "DELETE" }),
-    getProjectsByUser: (userId: string) => request<Project[]>(`/projects/user/${userId}`),
+  getProjectsByUser: (userId: string) =>
+    request<Project[]>(`/projects/user/${userId}`),
+  createProject: (body: ProjectCreateBody) =>
+    request<Project>("/projects/", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
