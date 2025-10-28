@@ -22,6 +22,15 @@ export type Project = {
   user_id: string;
   createdAt: string;
   updatedAt: string;
+  plannedEndDate?: string | null; 
+  endDate?: string | null;      
+};
+
+export type ProjectNote = {
+  note_id: string;
+  title: string;
+  content: string;
+  createdAt: string;
 };
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
@@ -63,4 +72,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+    getProject: (id: string) => request<Project>(`/projects/${id}`),
+    updateProject: (id: string, body: Partial<Project>) =>
+  request<Project>(`/projects/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(body),
+  }),
+
 };
