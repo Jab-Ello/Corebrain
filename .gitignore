@@ -4,3 +4,8 @@ backend/routes/__pycache__/user.cpython-313.pyc
 backend/services/__pycache__/conversation_services.cpython-313.pyc
 backend/services/__pycache__/llm_services.cpython-313.pyc
 backend/services/__pycache__/storage_services.cpython-313.pyc
+backend/corebrain.db
+/backend/database/__pycache__
+/backend/routes/__pycache__
+/backend/services/__pycache__
+backend/corebrain.db

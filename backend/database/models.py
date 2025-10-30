@@ -13,7 +13,7 @@ from .database import Base
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     name = Column(String)
     email = Column(String, unique=True)
     avatarUrl = Column(String)
@@ -24,6 +24,7 @@ class User(Base):
     projects = relationship("Project", back_populates="user", cascade="all, delete")
     notes = relationship("Note", back_populates="user", cascade="all, delete")
     areas = relationship("Area", back_populates="user", cascade="all, delete")
+    conversations = relationship("Conversation", back_populates="user", cascade="all, delete")
 
     def __repr__(self):
         return f"<User(name={self.name}, email={self.email})>"
@@ -35,7 +36,7 @@ class User(Base):
 class Project(Base):
     __tablename__ = "projects"
 
-    id = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     name = Column(String, nullable=False)
     description = Column(Text)
     context = Column(Text)
@@ -53,11 +54,9 @@ class Project(Base):
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
     updatedAt = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    # 🔹 Relation : chaque projet appartient à un utilisateur
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user = relationship("User", back_populates="projects")
 
-    # 🔹 Relation : un projet peut avoir plusieurs notes
     notes = relationship("Note", secondary="project_notes", back_populates="projects")
 
     def __repr__(self):
@@ -70,18 +69,16 @@ class Project(Base):
 class Area(Base):
     __tablename__ = "areas"
 
-    id = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     name = Column(String, nullable=False)
     description = Column(Text)
     color = Column(String)
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
     updatedAt = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    # 🔹 Chaque zone appartient à un utilisateur
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user = relationship("User", back_populates="areas")
 
-    # 🔹 Relation N↔N avec les notes
     notes = relationship("Note", secondary="area_notes", back_populates="areas")
 
     def __repr__(self):
@@ -94,7 +91,7 @@ class Area(Base):
 class Note(Base):
     __tablename__ = "notes"
 
-    id = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     title = Column(String, nullable=False)
     content = Column(Text, nullable=False)
     summary = Column(Text)
@@ -103,17 +100,11 @@ class Note(Base):
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
     updatedAt = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    # 🔹 Chaque note appartient à un utilisateur
-    user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user = relationship("User", back_populates="notes")
 
-    # 🔹 Une note peut être liée à plusieurs projets
     projects = relationship("Project", secondary="project_notes", back_populates="notes")
-
-    # 🔹 Une note peut être liée à plusieurs zones
     areas = relationship("Area", secondary="area_notes", back_populates="notes")
-
-    # 🔹 Une note peut être liée à plusieurs tags
     tags = relationship("Tag", secondary="note_tags", back_populates="notes")
 
     def __repr__(self):
@@ -126,15 +117,53 @@ class Note(Base):
 class Tag(Base):
     __tablename__ = "tags"
 
-    id = Column(String, primary_key=True)
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
     name = Column(String, unique=True, nullable=False)
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    # 🔹 Relation avec les notes
     notes = relationship("Note", secondary="note_tags", back_populates="tags")
 
     def __repr__(self):
         return f"<Tag(name={self.name})>"
+
+
+###############################################################
+# CONVERSATION MODEL
+###############################################################
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    uuid = Column(String, unique=True, nullable=False)
+    title = Column(String, nullable=False, default="Nouvelle conversation")
+    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updatedAt = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user = relationship("User", back_populates="conversations")
+
+    messages = relationship("Message", back_populates="conversation", cascade="all, delete")
+
+    def __repr__(self):
+        return f"<Conversation(id={self.id}, uuid={self.uuid}, user_id={self.user_id})>"
+
+
+###############################################################
+# MESSAGE MODEL
+###############################################################
+class Message(Base):
+    __tablename__ = "messages"
+
+    id = Column(Integer, primary_key=True, autoincrement=True, index=True)
+    role = Column(String, CheckConstraint("role IN ('user', 'assistant')"), nullable=False)
+    content = Column(Text, nullable=False)
+    createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    conversation_id = Column(Integer, ForeignKey("conversations.id", ondelete="CASCADE"), nullable=False)
+    conversation = relationship("Conversation", back_populates="messages")
+
+    def __repr__(self):
+        return f"<Message(id={self.id}, role={self.role}, conversation_id={self.conversation_id})>"
 
 
 ###############################################################
@@ -143,22 +172,22 @@ class Tag(Base):
 project_notes = Table(
     "project_notes",
     Base.metadata,
-    Column("project_id", String, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
-    Column("note_id", String, ForeignKey("notes.id", ondelete="CASCADE"), primary_key=True),
+    Column("project_id", Integer, ForeignKey("projects.id", ondelete="CASCADE"), primary_key=True),
+    Column("note_id", Integer, ForeignKey("notes.id", ondelete="CASCADE"), primary_key=True),
     Column("added_at", DateTime, default=datetime.utcnow, nullable=False),
 )
 
 area_notes = Table(
     "area_notes",
     Base.metadata,
-    Column("area_id", String, ForeignKey("areas.id", ondelete="CASCADE"), primary_key=True),
-    Column("note_id", String, ForeignKey("notes.id", ondelete="CASCADE"), primary_key=True),
+    Column("area_id", Integer, ForeignKey("areas.id", ondelete="CASCADE"), primary_key=True),
+    Column("note_id", Integer, ForeignKey("notes.id", ondelete="CASCADE"), primary_key=True),
     Column("added_at", DateTime, default=datetime.utcnow, nullable=False),
 )
 
 note_tags = Table(
     "note_tags",
     Base.metadata,
-    Column("note_id", String, ForeignKey("notes.id", ondelete="CASCADE"), primary_key=True),
-    Column("tag_id", String, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
+    Column("note_id", Integer, ForeignKey("notes.id", ondelete="CASCADE"), primary_key=True),
+    Column("tag_id", Integer, ForeignKey("tags.id", ondelete="CASCADE"), primary_key=True),
 )
