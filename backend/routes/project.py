@@ -6,6 +6,7 @@ from database.models import Project, User, Note
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+import uuid
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
@@ -25,7 +26,7 @@ def get_db():
 # SCHEMAS (Pydantic)
 ###############################################################
 class ProjectCreate(BaseModel):
-    user_id: int
+    user_id: str
     name: str
     description: Optional[str] = None
     context: Optional[str] = None
@@ -35,19 +36,19 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectRead(BaseModel):
-    id: int
+    id: str
     name: str
     description: Optional[str]
     context: Optional[str]
     color: Optional[str]
     priority: int
     status: str
-    user_id: int
+    user_id: str
     createdAt: datetime
     updatedAt: datetime
 
     class Config:
-        from_attributes = True  # ✅ pour Pydantic v2
+        orm_mode = True
 
 
 class ProjectUpdate(BaseModel):
@@ -65,7 +66,7 @@ class ProjectUpdate(BaseModel):
 # ROUTES
 ###############################################################
 
-# 🔹 Créer un projet
+# Créer un projet
 @router.post("/", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
 def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == payload.user_id).first()
@@ -73,6 +74,7 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 
     new_project = Project(
+        id=str(uuid.uuid4()),
         user_id=payload.user_id,
         name=payload.name,
         description=payload.description,
@@ -89,34 +91,29 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     return new_project
 
 
-# 🔹 Lister tous les projets d’un utilisateur
+# Lister tous les projets d’un utilisateur
 @router.get("/user/{user_id}", response_model=List[ProjectRead])
-def get_projects_by_user(user_id: int, db: Session = Depends(get_db)):
+def get_projects_by_user(user_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 
-    projects = (
-        db.query(Project)
-        .filter(Project.user_id == user_id)
-        .order_by(Project.createdAt.desc())
-        .all()
-    )
+    projects = db.query(Project).filter(Project.user_id == user_id).order_by(Project.createdAt.desc()).all()
     return projects
 
 
-# 🔹 Obtenir un projet spécifique (par ID)
+# Obtenir un projet spécifique (par ID)
 @router.get("/{project_id}", response_model=ProjectRead)
-def get_project(project_id: int, db: Session = Depends(get_db)):
+def get_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Projet introuvable")
     return project
 
 
-# 🔹 Mettre à jour un projet
+# Mettre à jour un projet
 @router.put("/{project_id}", response_model=ProjectRead)
-def update_project(project_id: int, payload: ProjectUpdate, db: Session = Depends(get_db)):
+def update_project(project_id: str, payload: ProjectUpdate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Projet introuvable")
@@ -130,9 +127,9 @@ def update_project(project_id: int, payload: ProjectUpdate, db: Session = Depend
     return project
 
 
-# 🔹 Supprimer un projet
+# Supprimer un projet
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_project(project_id: int, db: Session = Depends(get_db)):
+def delete_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Projet introuvable")
@@ -146,9 +143,9 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
 # Notes liées à un projet
 ###############################################################
 
-# 🔹 Ajouter une note existante à un projet
+# Ajouter une note existante à un projet
 @router.post("/{project_id}/notes/{note_id}")
-def attach_note_to_project(project_id: int, note_id: int, db: Session = Depends(get_db)):
+def attach_note_to_project(project_id: str, note_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     note = db.query(Note).filter(Note.id == note_id).first()
 
@@ -168,9 +165,9 @@ def attach_note_to_project(project_id: int, note_id: int, db: Session = Depends(
     return {"message": f"Note '{note.title}' liée au projet '{project.name}'"}
 
 
-# 🔹 Récupérer toutes les notes liées à un projet
+# Récupérer toutes les notes liées à un projet
 @router.get("/{project_id}/notes")
-def get_project_notes(project_id: int, db: Session = Depends(get_db)):
+def get_project_notes(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Projet introuvable")

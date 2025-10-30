@@ -6,6 +6,7 @@ from database.models import Area, User, Note
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+import uuid
 
 router = APIRouter(prefix="/areas", tags=["Areas"])
 
@@ -25,7 +26,7 @@ def get_db():
 # SCHEMAS (Pydantic)
 ###############################################################
 class AreaCreate(BaseModel):
-    user_id: int
+    user_id: str
     name: str
     description: Optional[str] = None
     color: Optional[str] = None
@@ -38,23 +39,23 @@ class AreaUpdate(BaseModel):
 
 
 class AreaRead(BaseModel):
-    id: int
+    id: str
     name: str
     description: Optional[str]
     color: Optional[str]
-    user_id: int
+    user_id: str
     createdAt: datetime
     updatedAt: datetime
 
     class Config:
-        from_attributes = True  # ✅ Pydantic v2
+        orm_mode = True
 
 
 ###############################################################
 # ROUTES CRUD AREAS
 ###############################################################
 
-# 🔹 Créer une zone
+# Créer une zone
 @router.post("/", response_model=AreaRead, status_code=status.HTTP_201_CREATED)
 def create_area(payload: AreaCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == payload.user_id).first()
@@ -62,6 +63,7 @@ def create_area(payload: AreaCreate, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 
     new_area = Area(
+        id=str(uuid.uuid4()),
         user_id=payload.user_id,
         name=payload.name,
         description=payload.description,
@@ -76,9 +78,9 @@ def create_area(payload: AreaCreate, db: Session = Depends(get_db)):
     return new_area
 
 
-# 🔹 Lister toutes les zones d’un utilisateur
+# Lister toutes les zones d’un utilisateur
 @router.get("/user/{user_id}", response_model=List[AreaRead])
-def get_areas_by_user(user_id: int, db: Session = Depends(get_db)):
+def get_areas_by_user(user_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
@@ -87,18 +89,18 @@ def get_areas_by_user(user_id: int, db: Session = Depends(get_db)):
     return areas
 
 
-# 🔹 Obtenir une zone spécifique
+# Obtenir une zone spécifique
 @router.get("/{area_id}", response_model=AreaRead)
-def get_area(area_id: int, db: Session = Depends(get_db)):
+def get_area(area_id: str, db: Session = Depends(get_db)):
     area = db.query(Area).filter(Area.id == area_id).first()
     if not area:
         raise HTTPException(status_code=404, detail="Zone introuvable")
     return area
 
 
-# 🔹 Mettre à jour une zone
+# Mettre à jour une zone
 @router.put("/{area_id}", response_model=AreaRead)
-def update_area(area_id: int, payload: AreaUpdate, db: Session = Depends(get_db)):
+def update_area(area_id: str, payload: AreaUpdate, db: Session = Depends(get_db)):
     area = db.query(Area).filter(Area.id == area_id).first()
     if not area:
         raise HTTPException(status_code=404, detail="Zone introuvable")
@@ -112,9 +114,9 @@ def update_area(area_id: int, payload: AreaUpdate, db: Session = Depends(get_db)
     return area
 
 
-# 🔹 Supprimer une zone
+# Supprimer une zone
 @router.delete("/{area_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_area(area_id: int, db: Session = Depends(get_db)):
+def delete_area(area_id: str, db: Session = Depends(get_db)):
     area = db.query(Area).filter(Area.id == area_id).first()
     if not area:
         raise HTTPException(status_code=404, detail="Zone introuvable")
@@ -128,9 +130,9 @@ def delete_area(area_id: int, db: Session = Depends(get_db)):
 # NOTES ASSOCIÉES
 ###############################################################
 
-# 🔹 Lier une note existante à une zone
+# Lier une note existante à une zone
 @router.post("/{area_id}/notes/{note_id}")
-def attach_note_to_area(area_id: int, note_id: int, db: Session = Depends(get_db)):
+def attach_note_to_area(area_id: str, note_id: str, db: Session = Depends(get_db)):
     area = db.query(Area).filter(Area.id == area_id).first()
     note = db.query(Note).filter(Note.id == note_id).first()
 
@@ -148,9 +150,9 @@ def attach_note_to_area(area_id: int, note_id: int, db: Session = Depends(get_db
     return {"message": f"Note '{note.title}' liée à la zone '{area.name}'"}
 
 
-# 🔹 Lister les notes d’une zone
+# Lister les notes d’une zone
 @router.get("/{area_id}/notes")
-def get_notes_in_area(area_id: int, db: Session = Depends(get_db)):
+def get_notes_in_area(area_id: str, db: Session = Depends(get_db)):
     area = db.query(Area).filter(Area.id == area_id).first()
     if not area:
         raise HTTPException(status_code=404, detail="Zone introuvable")
