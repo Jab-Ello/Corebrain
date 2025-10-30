@@ -111,5 +111,42 @@ export const api = {
     method: "PUT",
     body: JSON.stringify(body),
   }),
+    /** Notes liées à un projet (backend/routes/project.py -> GET /projects/{project_id}/notes) */
+  async getProjectNotes(projectId: string) {
+    return request<ProjectNote[]>(`/projects/${projectId}/notes`);
+  },
+
+  /** Toutes les notes d'un utilisateur (backend/routes/note.py -> GET /notes/user/{user_id}) */
+  async getUserNotes(userId: string) {
+    return request<Note[]>(`/notes/user/${userId}`);
+  },
+
+  /** Créer une note (backend/routes/note.py -> POST /notes) */
+  async createNote(body: NoteCreateBody) {
+    return request<Note>(`/notes/`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  /** Mettre à jour une note (backend/routes/note.py -> PUT /notes/{note_id}) */
+  async updateNote(noteId: string, body: NoteUpdateBody) {
+    return request<Note>(`/notes/${noteId}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+  },
+
+  /** Supprimer une note (backend/routes/note.py -> DELETE /notes/{note_id}) */
+  async deleteNote(noteId: string) {
+    return request<void>(`/notes/${noteId}`, { method: "DELETE" });
+  },
+
+  /** Lier une note existante à un projet (backend/routes/project.py -> POST /projects/{project_id}/notes/{note_id}) */
+  async attachNoteToProject(projectId: string, noteId: string) {
+    return request<{ message: string }>(`/projects/${projectId}/notes/${noteId}`, {
+      method: "POST",
+    });
+  },
 
 };

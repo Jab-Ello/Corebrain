@@ -1,233 +1,136 @@
-'use client';
-export const dynamic = 'force-dynamic'; // évite les erreurs de prerender
+"use client";
+export const dynamic = "force-dynamic";
 
-import { useMemo, useState, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
-import NotesCanvas, { Note } from "../../components/notes/notesCanvas";
-import NotesTabs, { Scope } from "../../components/notes/notesTab";
+import { useEffect, useState } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { getSession } from "@/lib/session";
+import { api, type ProjectNote, type Note } from "@/lib/api";
 
-type NewNotePayload = { title: string; content: string; tags: string[] };
-
-const DATA_INIT: Record<Scope, Note[]> = {
-  projects: [
-    { id: "p1", title: "Kickoff", content: "Timeline & milestones…", tags: ["Meetings"], createdAt: "2025-10-12" },
-    { id: "p2", title: "UX Ideas", content: "Blue accent audit…", tags: ["Design"], createdAt: "2025-10-10" },
-  ],
-  areas: [
-    { id: "a1", title: "Area Vision", content: "North star & principles…", tags: ["Reflections"], createdAt: "2025-10-08" },
-  ],
-  resources: [
-    { id: "r1", title: "Paper highlights", content: "Agentic systems notes…", tags: ["Research"], createdAt: "2025-10-07" },
-  ],
-  archives: [
-    { id: "x1", title: "Retro", content: "What went well…", tags: ["Reflections"], createdAt: "2025-09-29" },
-  ],
+type UiNote = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
 };
 
-function NewNoteModal({
-  open,
-  onClose,
-  onSave,
-  accent = "#2151ff",
-  presetTags = [],
-}: {
-  open: boolean;
-  onClose: () => void;
-  onSave: (note: NewNotePayload) => void;
-  accent?: string;
-  presetTags?: string[];
-}) {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [tags, setTags] = useState<string[]>(presetTags);
-  const [tagInput, setTagInput] = useState("");
-  const dialogRef = useRef<HTMLDivElement>(null);
+export default function NotesPage() {
+  const router = useRouter();
+  const search = useSearchParams();
+  const projectId = search.get("projectId") ?? undefined;
 
-  // reset à l'ouverture
+  const [loading, setLoading] = useState(true);
+  const [notes, setNotes] = useState<UiNote[]>([]);
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
-    if (open) {
-      setTitle("");
-      setContent("");
-      setTags(presetTags);
-      setTagInput("");
+    const s = getSession();
+    if (!s) {
+      router.replace("/login");
+      return;
     }
-  }, [open, presetTags]);
 
-  // fermer par ESC
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+    (async () => {
+      try {
+        setLoading(true);
+        if (projectId) {
+          // Notes depuis /projects/{id}/notes (ProjectNote -> UiNote)
+          const data: ProjectNote[] = await api.getProjectNotes(projectId);
+          setNotes(
+            data.map(n => ({
+              id: n.note_id,
+              title: n.title,
+              content: n.content,
+              createdAt: n.createdAt,
+            }))
+          );
+        } else {
+          // Notes utilisateur depuis /notes/user/{user_id} (Note -> UiNote)
+          const data: Note[] = await api.getUserNotes(s.userId);
+          setNotes(
+            data.map(n => ({
+              id: n.id,
+              title: n.title,
+              content: n.content,
+              createdAt: n.createdAt,
+            }))
+          );
+        }
+      } catch (e: any) {
+        setError(e?.message ?? "Impossible de charger les notes.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [projectId, router]);
 
-  const addTag = () => {
-    const t = tagInput.trim();
-    if (!t) return;
-    if (!tags.includes(t)) setTags((prev) => [...prev, t]);
-    setTagInput("");
-  };
-
-  const removeTag = (t: string) => {
-    setTags((prev) => prev.filter((x) => x !== t));
-  };
-
-  const submit = () => {
-    if (!title.trim() && !content.trim()) return; // empêche une note vide
-    onSave({ title: title.trim(), content: content.trim(), tags });
-    onClose();
-  };
-
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true">
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-
-      {/* Dialog */}
-      <div
-        ref={dialogRef}
-        className="relative w-full max-w-2xl rounded-2xl bg-[#121316] text-gray-100 border border-white/10 shadow-xl"
-      >
-        <div className="px-6 pt-6">
-          <h2 className="text-2xl font-semibold text-white text-center mb-4">Create New Note</h2>
-
-          {/* Title */}
-          <input
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Title"
-            className="w-full rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-2 mb-3"
-          />
-
-          {/* Tags */}
-          <div className="flex flex-wrap items-center gap-2 mb-3">
-            {tags.map((t) => (
-              <span
-                key={t}
-                className="inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm text-white border"
-                style={{ backgroundColor: `${accent}33`, borderColor: accent }}
-              >
-                {t}
-                <button
-                  type="button"
-                  className="opacity-80 hover:opacity-100"
-                  onClick={() => removeTag(t)}
-                  aria-label={`Remove ${t}`}
-                >
-                  ×
-                </button>
-              </span>
-            ))}
-            <div className="flex items-center gap-2">
-              <input
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                placeholder="+ Add Tag"
-                className="rounded-full bg-white/5 border border-white/10 px-3 py-1.5 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-2"
-              />
-              <button
-                type="button"
-                onClick={addTag}
-                className="rounded-full px-3 py-1.5 text-sm font-medium border text-white transition"
-                style={{ borderColor: accent, backgroundColor: `${accent}33` }}
-              >
-                Add
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Write your note here…"
-            className="w-full min-h-[180px] rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-sm text-gray-200 placeholder:text-gray-500 focus:outline-none focus:ring-2"
-          />
-        </div>
-
-        {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-5">
-          <button
-            onClick={onClose}
-            className="rounded-full px-4 py-2 text-sm border border-white/15 text-gray-200 hover:bg-white/5"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={submit}
-            className="rounded-full px-4 py-2 text-sm font-medium text-white"
-            style={{ backgroundColor: accent }}
-          >
-            Save Note
-          </button>
-        </div>
-
-        {/* Bouton AI (cosmétique pour plus tard) */}
-        <button
-          type="button"
-          className="absolute bottom-5 right-5 w-9 h-9 rounded-full flex items-center justify-center text-white"
-          title="AI assist (coming soon)"
-          style={{ backgroundColor: accent }}
-        >
-          💡
-        </button>
+  if (loading) return <div className="p-6 text-sm text-white/70">Chargement…</div>;
+  if (error) return (
+    <main className="p-6">
+      <div className="mb-2">
+        <Link href={projectId ? `/projects/${projectId}` : "/projects"} className="text-sm underline decoration-white/30 hover:decoration-white/80">
+          ← Back
+        </Link>
       </div>
-    </div>
+      <div className="text-sm text-red-300">{error}</div>
+    </main>
   );
-}
-
-export default function GlobalNotesPage() {
-  const sp = useSearchParams();
-  const initialTab = (sp.get("tab") as Scope) || "projects";
-
-  // État des notes par scope (mutable)
-  const [data, setData] = useState<Record<Scope, Note[]>>(DATA_INIT);
-  const [scope, setScope] = useState<Scope>(initialTab);
-
-  // Modal
-  const [open, setOpen] = useState(false);
-
-  const notes = useMemo(() => data[scope] ?? [], [data, scope]);
-
-  const handleSave = (payload: NewNotePayload) => {
-    const newNote: Note = {
-      id: (crypto as any).randomUUID?.() || String(Date.now()),
-      title: payload.title || "Untitled",
-      content: payload.content || "",
-      tags: payload.tags,
-      createdAt: new Date().toISOString().slice(0, 10),
-    };
-    setData((prev) => ({ ...prev, [scope]: [newNote, ...(prev[scope] || [])] }));
-  };
 
   return (
-    <div className="min-h-screen bg-gray-950 text-gray-100">
-      <div className="mx-auto max-w-7xl px-3 sm:px-6 lg:px-8 py-6">
-        <header className="mb-2">
-          <h1 className="text-2xl font-semibold text-white">Notes</h1>
-          <p className="text-sm text-gray-400">
-            Browse notes across Projects, Areas, Resources, or Archives.
-          </p>
-        </header>
-
-        <NotesTabs initial={initialTab} onChange={(s: Scope) => setScope(s)} />
-
-        <NotesCanvas
-          title={`${scope.charAt(0).toUpperCase() + scope.slice(1)} Notes`}
-          notes={notes}
-          onNewNote={() => setOpen(true)}   // ouvre le modal
-        />
+    <main className="p-6">
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold">
+          {projectId ? "Project notes" : "All notes"}
+        </h1>
+        <div className="flex gap-2">
+          {projectId ? (
+            <Link
+              href={`/projects/${projectId}`}
+              className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm hover:bg-white/15"
+            >
+              ← Back to project
+            </Link>
+          ) : (
+            <Link
+              href="/projects"
+              className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm hover:bg-white/15"
+            >
+              ← Back to projects
+            </Link>
+          )}
+        </div>
       </div>
 
-      <NewNoteModal
-        open={open}
-        onClose={() => setOpen(false)}
-        onSave={handleSave}
-        presetTags={[scope.charAt(0).toUpperCase() + scope.slice(1)]} // ex: "Projects"
-        accent="#2151ff"
-      />
-    </div>
+      {notes.length === 0 ? (
+        <div className="rounded-2xl bg-white/5 border border-white/10 p-6">
+          <p className="text-sm text-white/70">
+            {projectId ? "Aucune note liée à ce projet." : "Aucune note pour l’instant."}
+          </p>
+        </div>
+      ) : (
+        <ul className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+          {notes.map((n) => (
+            <li key={n.id} className="rounded-xl bg-white/5 border border-white/10 p-4 flex flex-col gap-3 hover:bg-white/10 transition">
+              <div className="flex items-start justify-between gap-3">
+                <h3 className="font-semibold">{n.title}</h3>
+                <span className="text-xs text-white/60">
+                  {new Date(n.createdAt).toLocaleDateString()}
+                </span>
+              </div>
+              <p className="text-sm text-white/70 line-clamp-5">{n.content}</p>
+              <div className="flex items-center justify-end gap-2">
+                {/* Placeholders d’actions; on branchera plus tard */}
+                <button className="rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs hover:bg-white/15">
+                  View
+                </button>
+                <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/10">
+                  Edit
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </main>
   );
 }
