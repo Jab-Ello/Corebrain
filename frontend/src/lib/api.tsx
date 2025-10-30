@@ -1,6 +1,5 @@
 const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
 
-
 export type ProjectCreateBody = {
   user_id: string;
   name: string;
@@ -32,38 +31,6 @@ export type ProjectNote = {
   title: string;
   content: string;
   createdAt: string;
-};
-
-export type Note = {
-  id: string;
-  title: string;
-  content: string;
-  summary?: string | null;
-  pinned: boolean;
-  user_id: string;
-  createdAt: string;    // ISO
-  updatedAt: string;    // ISO
-};
-
-export type NoteCreateBody = {
-  user_id: string;                 // requis par ton backend
-  title: string;
-  content: string;
-  summary?: string | null;
-  pinned?: boolean;
-  project_ids?: string[];          // lier dès la création
-  area_ids?: string[];
-  tag_names?: string[];
-};
-
-export type NoteUpdateBody = {
-  title?: string;
-  content?: string;
-  summary?: string | null;
-  pinned?: boolean;
-  project_ids?: string[];
-  area_ids?: string[];
-  tag_names?: string[];
 };
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {

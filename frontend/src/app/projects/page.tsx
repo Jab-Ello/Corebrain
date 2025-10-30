@@ -56,43 +56,29 @@ export default function ProjectsPage() {
           {projects.map((p) => (
             <li
               key={p.id}
-              className="rounded-xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition flex flex-col justify-between"
+              className="rounded-xl bg-white/5 border border-white/10 p-4 hover:bg-white/10 transition"
             >
-              <div>
-                <div className="flex items-start justify-between">
-                  <h3 className="font-semibold">{p.name}</h3>
-                  <span className="text-xs px-2 py-0.5 rounded bg-white/10 border border-white/10">
-                    {p.status}
-                  </span>
-                </div>
-
-                {p.description && (
-                  <p className="text-sm text-white/70 mt-1 line-clamp-3">{p.description}</p>
-                )}
-
-                <div className="mt-3 flex gap-2 text-xs text-white/60">
-                  <span>Priority: {p.priority}</span>
-                  <span>•</span>
-                  <span>{new Date(p.createdAt).toLocaleDateString()}</span>
-                </div>
+              <div className="flex items-start justify-between">
+                <h3 className="font-semibold">{p.name}</h3>
+                <span className="text-xs px-2 py-0.5 rounded bg-white/10 border border-white/10">
+                  {p.status}
+                </span>
+              </div>
+              {p.description && (
+                <p className="text-sm text-white/70 mt-1 line-clamp-3">{p.description}</p>
+              )}
+              <div className="mt-3 flex gap-2 text-xs text-white/60">
+                <span>Priority: {p.priority}</span>
+                <span>•</span>
+                <span>{new Date(p.createdAt).toLocaleDateString()}</span>
               </div>
 
-              {/* Actions */}
-              <div className="mt-4 flex items-center justify-between">
+              <div className="mt-3">
                 <Link
                   href={`/projects/${p.id}`}
                   className="text-sm underline decoration-white/30 hover:decoration-white/80"
                 >
                   View details
-                </Link>
-                <Link
-                  href={`/notes?projectId=${p.id}`}
-                  className="inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold
-                            bg-sky-500 text-black/90 hover:bg-sky-400
-                            border border-white/10 shadow-sm transition
-                            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
-                >
-                  🧠 View related notes
                 </Link>
               </div>
             </li>
