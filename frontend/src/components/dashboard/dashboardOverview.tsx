@@ -1,33 +1,65 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Card from "@/components/ui/card";
 import MiniStat from "@/components/dashboard/ministat";
-
+import { getSession } from "@/lib/session";
+import { api, type Project, type Note } from "@/lib/api";
 
 export default function DashboardOverview() {
-return (
-<Card title="Overview">
-<div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-<div className="flex md:col-span-1">
-<div className="relative h-28 w-28 rounded-full bg-[var(--bg)] border-2 border-[var(--border-strong)] grid place-items-center shadow-inner">
-<div className="text-center">
-<div className="text-3xl font-black">9.0</div>
-<div className="text-xs text-white/70">/10</div>
-</div>
-<span className="absolute -inset-1 rounded-full border border-white/5 pointer-events-none" />
-</div>
-<div className="ml-4">
-<div className="text-sm text-white/70">Weekly focus score</div>
-<p className="text-xs text-white/60 mt-1 max-w-[14ch]">How consistently you touched notes & projects</p>
-</div>
-</div>
+  const router = useRouter();
 
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-<div className="md:col-span-2 grid grid-cols-3 gap-3">
-<MiniStat label="Projects" value="8" />
-<MiniStat label="Areas" value="5" />
-<MiniStat label="Resources" value="67" />
-<MiniStat label="Archives" value="13" />
-</div>
-</div>
-</Card>
-);
+  const [projectsCount, setProjectsCount] = useState<number | null>(null);
+  const [notesCount, setNotesCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    const s = getSession();
+    if (!s) {
+      router.replace("/login");
+      return;
+    }
+
+    (async () => {
+      try {
+        setLoading(true);
+        const [projects, notes] = await Promise.all([
+          api.getProjectsByUser(s.userId) as Promise<Project[]>,
+          api.getUserNotes(s.userId) as Promise<Note[]>,
+        ]);
+
+        setProjectsCount(projects.length);
+        setNotesCount(notes.length);
+      } catch (e: any) {
+        setError(e?.message ?? "Unable to load dashboard data.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [router]);
+
+  return (
+    <Card title="Overview">
+      {/* Removed Weekly Focus block entirely */}
+
+      {/* MiniStats row */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        <MiniStat label="Projects" value={projectsCount !== null ? String(projectsCount) : (loading ? "…" : "0")} />
+        <MiniStat label="Notes" value={notesCount !== null ? String(notesCount) : (loading ? "…" : "0")} />
+
+        {/* If you later expose these from the backend, add similar loaders: */}
+        {/* <MiniStat label="Areas" value={areasCount !== null ? String(areasCount) : (loading ? "…" : "0")} /> */}
+        {/* <MiniStat label="Resources" value={resourcesCount !== null ? String(resourcesCount) : (loading ? "…" : "0")} /> */}
+      </div>
+
+      {error && (
+        <p className="mt-3 text-xs text-red-300">
+          {error}
+        </p>
+      )}
+    </Card>
+  );
 }

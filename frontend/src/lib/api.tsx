@@ -66,6 +66,9 @@ export type NoteUpdateBody = {
   tag_names?: string[];
 };
 
+export type ProjectStatus = "active" | "archived"; 
+export const PROJECT_STATUSES: ProjectStatus[] = ["active", "archived"];
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API}${path}`, {
     ...init,
@@ -80,6 +83,30 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
 export type User = {
   id: string; name: string; email: string; avatarUrl?: string; createdAt?: string;
+};
+
+export type AreaCreateBody = {
+  user_id: string;
+  name: string;
+  description?: string | null;
+  color?: string | null;
+};
+
+export type Area = {
+  id: string;
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  user_id: string;
+  createdAt: string; // ISO
+  updatedAt: string; // ISO
+};
+
+export type AreaNote = {
+  note_id: string;
+  title: string;
+  content: string;
+  createdAt: string; // ISO
 };
 
 export const api = {
@@ -150,4 +177,33 @@ export const api = {
     });
   },
 
+  updateProjectStatus: (id: string, status: ProjectStatus) =>
+  request(`/projects/${id}`, {
+    method: "PUT",
+    body: JSON.stringify({ status }),
+  }),
+
+  //Areas 
+
+  getAreasByUser: (userId: string) =>
+    request<Area[]>(`/areas/user/${userId}`),
+
+  getArea: (areaId: string) =>
+    request<Area>(`/areas/${areaId}`),
+
+  createArea: (body: AreaCreateBody) =>
+    request<Area>(`/areas/`, { method: "POST", body: JSON.stringify(body) }),
+
+  updateArea: (areaId: string, body: Partial<Omit<Area, "id"|"user_id"|"createdAt"|"updatedAt">>) =>
+    request<Area>(`/areas/${areaId}`, { method: "PUT", body: JSON.stringify(body) }),
+
+  deleteArea: (areaId: string) =>
+    request<void>(`/areas/${areaId}`, { method: "DELETE" }),
+
+  // Notes liées à une area
+  getAreaNotes: (areaId: string) =>
+    request<AreaNote[]>(`/areas/${areaId}/notes`),
+
+  attachNoteToArea: (areaId: string, noteId: string) =>
+    request<{ message: string }>(`/areas/${areaId}/notes/${noteId}`, { method: "POST" }),
 };
