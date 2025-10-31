@@ -1,17 +1,24 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { getSession } from "@/lib/session";
-import { api, type ProjectNote, type Note } from "@/lib/api";
+import { api, type ProjectNote, type Note, type NoteUpdateBody } from "@/lib/api";
 
 type UiNote = {
   id: string;
   title: string;
   content: string;
   createdAt: string;
+};
+
+type EditState = { // NEW
+  open: boolean;
+  note: UiNote | null;
+  saving: boolean;
+  error: string | null;
 };
 
 export default function NotesPage() {
@@ -22,6 +29,13 @@ export default function NotesPage() {
   const [loading, setLoading] = useState(true);
   const [notes, setNotes] = useState<UiNote[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  const [edit, setEdit] = useState<EditState>({ // NEW
+    open: false,
+    note: null,
+    saving: false,
+    error: null,
+  });
 
   useEffect(() => {
     const s = getSession();
@@ -34,7 +48,6 @@ export default function NotesPage() {
       try {
         setLoading(true);
         if (projectId) {
-          // Notes depuis /projects/{id}/notes (ProjectNote -> UiNote)
           const data: ProjectNote[] = await api.getProjectNotes(projectId);
           setNotes(
             data.map(n => ({
@@ -45,7 +58,8 @@ export default function NotesPage() {
             }))
           );
         } else {
-          // Notes utilisateur depuis /notes/user/{user_id} (Note -> UiNote)
+          const s = getSession();
+          if (!s) throw new Error("Session invalide.");
           const data: Note[] = await api.getUserNotes(s.userId);
           setNotes(
             data.map(n => ({
@@ -63,6 +77,47 @@ export default function NotesPage() {
       }
     })();
   }, [projectId, router]);
+
+  // Helpers NEW
+  const openEdit = (n: UiNote) =>
+    setEdit({ open: true, note: { ...n }, saving: false, error: null });
+
+  const closeEdit = () =>
+    setEdit(prev => ({ ...prev, open: false, note: null, error: null }));
+
+  const onEditField = (field: keyof UiNote, value: string) => {
+    setEdit(prev => prev.note ? { ...prev, note: { ...prev.note, [field]: value } } : prev);
+  };
+
+  const saveEdit = async () => {
+    if (!edit.note) return;
+    try {
+      setEdit(prev => ({ ...prev, saving: true, error: null }));
+
+      // Construis un payload partiel — ici title + content (tu peux étendre à summary/pinned)
+      const payload: NoteUpdateBody = {
+        title: edit.note.title,
+        content: edit.note.content,
+      };
+
+      const updated = await api.updateNote(edit.note.id, payload);
+
+      // Mets à jour la liste localement (optimiste confirmé)
+      setNotes(prev =>
+        prev.map(n =>
+          n.id === updated.id
+            ? { ...n, title: updated.title, content: updated.content, createdAt: updated.createdAt }
+            : n
+        )
+      );
+
+      closeEdit();
+    } catch (e: any) {
+      setEdit(prev => ({ ...prev, error: e?.message ?? "Échec de la sauvegarde." }));
+    } finally {
+      setEdit(prev => ({ ...prev, saving: false }));
+    }
+  };
 
   if (loading) return <div className="p-6 text-sm text-white/70">Chargement…</div>;
   if (error) return (
@@ -119,17 +174,77 @@ export default function NotesPage() {
               </div>
               <p className="text-sm text-white/70 line-clamp-5">{n.content}</p>
               <div className="flex items-center justify-end gap-2">
-                {/* Placeholders d’actions; on branchera plus tard */}
-                <button className="rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs hover:bg-white/15">
+                <button
+                  className="rounded-lg bg-white/10 border border-white/10 px-3 py-1.5 text-xs hover:bg-white/15"
+                  onClick={() => router.push(`/notes/${n.id}`)} // “View” vers page dédiée (si tu crées la route)
+                >
                   View
                 </button>
-                <button className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/10">
+                <button
+                  className="rounded-lg border border-white/10 px-3 py-1.5 text-xs hover:bg-white/10"
+                  onClick={() => openEdit(n)} // NEW
+                >
                   Edit
                 </button>
               </div>
             </li>
           ))}
         </ul>
+      )}
+
+      {/* EDIT MODAL — NEW */}
+      {edit.open && edit.note && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-center justify-center"
+        >
+          <div className="absolute inset-0 bg-black/60" onClick={closeEdit} />
+          <div className="relative z-10 w-full max-w-lg rounded-2xl bg-[var(--bg,#0b0b0b)] border border-white/10 p-4">
+            <h2 className="text-lg font-semibold mb-3">Modifier la note</h2>
+
+            <div className="flex flex-col gap-3">
+              <label className="text-sm">
+                <span className="block text-white/70 mb-1">Titre</span>
+                <input
+                  className="w-full rounded-lg bg-white/5 border border-white/10 px-3 py-2"
+                  value={edit.note.title}
+                  onChange={(e) => onEditField("title", e.target.value)}
+                />
+              </label>
+
+              <label className="text-sm">
+                <span className="block text-white/70 mb-1">Contenu</span>
+                <textarea
+                  className="w-full min-h-[140px] rounded-lg bg-white/5 border border-white/10 px-3 py-2"
+                  value={edit.note.content}
+                  onChange={(e) => onEditField("content", e.target.value)}
+                />
+              </label>
+
+              {edit.error && (
+                <p className="text-xs text-red-300">{edit.error}</p>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  className="rounded-lg px-3 py-1.5 text-sm border border-white/10 hover:bg-white/10"
+                  onClick={closeEdit}
+                  disabled={edit.saving}
+                >
+                  Annuler
+                </button>
+                <button
+                  className="rounded-lg px-3 py-1.5 text-sm bg-white/90 text-black hover:bg-white"
+                  onClick={saveEdit}
+                  disabled={edit.saving}
+                >
+                  {edit.saving ? "Enregistrement…" : "Enregistrer"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </main>
   );

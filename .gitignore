@@ -4,3 +4,16 @@ backend/routes/__pycache__/user.cpython-313.pyc
 backend/services/__pycache__/conversation_services.cpython-313.pyc
 backend/services/__pycache__/llm_services.cpython-313.pyc
 backend/services/__pycache__/storage_services.cpython-313.pyc
+backend/corebrain.db
+backend/database/__pycache__/__init__.cpython-313.pyc
+backend/database/__pycache__/database.cpython-313.pyc
+backend/database/__pycache__/models.cpython-313.pyc
+backend/routes/__pycache__/agent.cpython-313.pyc
+backend/routes/__pycache__/area.cpython-313.pyc
+backend/routes/__pycache__/note.cpython-313.pyc
+backend/routes/__pycache__/project.cpython-313.pyc
+backend/routes/__pycache__/user.cpython-313.pyc
+backend/services/__pycache__/conversation_services.cpython-313.pyc
+backend/services/__pycache__/llm_services.cpython-313.pyc
+backend/services/__pycache__/storage_services.cpython-313.pyc
+backend/__pycache__/app.cpython-313.pyc

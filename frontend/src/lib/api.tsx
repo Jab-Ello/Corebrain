@@ -106,6 +106,7 @@ export const api = {
       body: JSON.stringify(body),
     }),
     getProject: (id: string) => request<Project>(`/projects/${id}`),
+    getNote: (noteId: string) => request<Note>(`/notes/${noteId}`),
     updateProject: (id: string, body: Partial<Project>) =>
   request<Project>(`/projects/${id}`, {
     method: "PUT",
