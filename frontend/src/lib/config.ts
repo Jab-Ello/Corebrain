@@ -26,6 +26,7 @@ export const CONFIG = {
     // Auth si besoin (exemple)
     login: () => "/auth/login",
     logout: () => "/auth/logout",
+    agentChat: () => "/api/agent/chat",
   },
 
   // Helpers pour construire des URLs absolues depuis les endpoints

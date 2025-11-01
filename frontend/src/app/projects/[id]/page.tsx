@@ -1,3 +1,4 @@
+ // ⬅️ agent IA (adapte le chemin si besoin)
 "use client";
 export const dynamic = "force-dynamic";
 
@@ -6,21 +7,26 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, type Project } from "../../../lib/api";
 import { getSession } from "../../../lib/session";
+import AIAgent from "../../../components/dashboard/AiAgent"; 
 
 export default function ProjectDetailsPage() {
   const router = useRouter();
-  const { id } = useParams<{ id: string }>();
+  const { id: projectId } = useParams<{ id: string }>(); // ✅ ID est un string UUID
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ---- NEW: status editing
   const [status, setStatus] = useState<string>("active");
   const [savingStatus, setSavingStatus] = useState(false);
   const [actionErr, setActionErr] = useState<string | null>(null);
 
+  // ------------------------------------------------------------
+  // 🔹 Charger le projet
+  // ------------------------------------------------------------
   useEffect(() => {
+    if (!projectId) return; // 🚫 évite l'appel si ID non encore dispo
+
     const s = getSession();
     if (!s) {
       router.replace("/login");
@@ -30,24 +36,26 @@ export default function ProjectDetailsPage() {
     (async () => {
       try {
         setLoading(true);
-        const data = await api.getProject(id);
+        const data = await api.getProject(projectId); // ✅ ID string
         setProject(data);
-        setStatus(data.status ?? "active"); // init status control
+        setStatus(data.status ?? "active");
       } catch (e: any) {
         setError(e?.message ?? "Impossible de charger le projet.");
       } finally {
         setLoading(false);
       }
     })();
-  }, [id, router]);
+  }, [projectId, router]);
 
+  // ------------------------------------------------------------
+  // 🔹 Sauvegarder le statut
+  // ------------------------------------------------------------
   const saveStatus = async () => {
     if (!project) return;
     try {
       setSavingStatus(true);
       setActionErr(null);
       const updated = await api.updateProject(project.id, { status });
-      // si ton backend renvoie le projet complet:
       setProject(updated);
       setStatus(updated.status ?? status);
     } catch (e: any) {
@@ -57,6 +65,9 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  // ------------------------------------------------------------
+  // 🔹 Archiver / désarchiver
+  // ------------------------------------------------------------
   const toggleArchive = async () => {
     if (!project) return;
     const target = (project.status || "").toLowerCase() === "archived" ? "active" : "archived";
@@ -73,6 +84,9 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  // ------------------------------------------------------------
+  // 🔹 États de chargement / erreur
+  // ------------------------------------------------------------
   if (loading)
     return <div className="p-6 text-sm text-white/70">Chargement du projet…</div>;
 
@@ -93,14 +107,16 @@ export default function ProjectDetailsPage() {
 
   const isArchived = (project.status || "").toLowerCase() === "archived";
 
+  // ------------------------------------------------------------
+  // 🔹 Rendu principal
+  // ------------------------------------------------------------
   return (
-    <main className="p-6">
+    <main className="p-6 space-y-6">
       {/* Header avec actions */}
-      <div className="mb-6 flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <h1 className="text-3xl font-bold">{project.name}</h1>
 
         <div className="flex items-center gap-2">
-          {/* Lien vers notes du projet */}
           <Link
             href={`/notes?projectId=${project.id}`}
             className="rounded-lg bg-white/10 border border-white/10 px-3 py-2 text-sm hover:bg-white/15"
@@ -108,15 +124,14 @@ export default function ProjectDetailsPage() {
             Notes
           </Link>
 
-          {/* Bouton rapide archive/reactivate */}
           <button
             onClick={toggleArchive}
             disabled={savingStatus}
             className="rounded-lg bg-white/90 text-black px-3 py-2 text-sm hover:bg-white disabled:opacity-60"
           >
             {savingStatus
-              ? (isArchived ? "Reactivating…" : "Archiving…")
-              : (isArchived ? "Reactivate" : "Archive project")}
+              ? isArchived ? "Reactivating…" : "Archiving…"
+              : isArchived ? "Reactivate" : "Archive project"}
           </button>
 
           <Link
@@ -134,7 +149,7 @@ export default function ProjectDetailsPage() {
         </div>
       </div>
 
-      {/* Project Card */}
+      {/* Carte du projet */}
       <div className="rounded-2xl bg-white/5 border border-white/10 p-6 shadow-lg">
         {/* Header infos */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
@@ -149,7 +164,7 @@ export default function ProjectDetailsPage() {
               </span>
             </div>
 
-            {/* ---- NEW: sélecteur de statut + bouton Save */}
+            {/* Sélecteur de statut + bouton Save */}
             <div className="flex items-center gap-2">
               <select
                 className="rounded-lg bg-white/5 border border-white/10 px-2 py-1 text-xs"
@@ -195,7 +210,7 @@ export default function ProjectDetailsPage() {
           )}
         </section>
 
-        {/* Infos complémentaires */}
+        {/* Infos supplémentaires */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="rounded-xl bg-white/5 border border-white/10 p-4">
             <div className="text-xs text-white/60 mb-1">Contexte</div>
@@ -226,6 +241,10 @@ export default function ProjectDetailsPage() {
           )}
         </section>
       </div>
+
+      {/* 🔹 Agent IA contextuel au projet */}
+      <AIAgent projectId={project.id} /> 
     </main>
   );
 }
+

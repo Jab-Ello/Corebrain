@@ -179,6 +179,11 @@ export const api = {
     request<AreaNote[]>(`/areas/${areaId}/notes`),
   attachNoteToArea: (areaId: string, noteId: string) =>
     request<{ message: string }>(`/areas/${areaId}/notes/${noteId}`, { method: "POST" }),
+
+  agentChat: (body: { user_id: string; conversation_id?: string | null; message: string }) =>
+  request<{ conversation_id?: string; reply?: string }>(CONFIG.endpoints.agentChat(), {
+    method: "POST",
+    body: JSON.stringify(body),}),
 };
 
 // Optionnel: export pour logger l'origine utilisée (debug)
