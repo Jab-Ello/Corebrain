@@ -1,5 +1,7 @@
-const API = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://127.0.0.1:8000";
+// src/lib/api.ts
+import { CONFIG } from "@/lib/config";
 
+const API_ORIGIN = CONFIG.API_BASE_URL; // utile pour debug si besoin
 
 export type ProjectCreateBody = {
   user_id: string;
@@ -23,8 +25,8 @@ export type Project = {
   user_id: string;
   createdAt: string;
   updatedAt: string;
-  plannedEndDate?: string | null; 
-  endDate?: string | null;      
+  plannedEndDate?: string | null;
+  endDate?: string | null;
 };
 
 export type ProjectNote = {
@@ -66,19 +68,27 @@ export type NoteUpdateBody = {
   tag_names?: string[];
 };
 
-export type ProjectStatus = "active" | "archived"; 
+export type ProjectStatus = "active" | "archived";
 export const PROJECT_STATUSES: ProjectStatus[] = ["active", "archived"];
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
+  const url = CONFIG.url.api(path); // <-- centralisé
+  const res = await fetch(url, {
     ...init,
+    credentials: "include",
     headers: {
+      Accept: "application/json",
       "Content-Type": "application/json",
       ...(init.headers || {}),
     },
   });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json() as Promise<T>;
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`HTTP ${res.status} ${res.statusText} @ ${url}\n${text}`);
+  }
+  return res.headers.get("content-type")?.includes("application/json")
+    ? (res.json() as Promise<T>)
+    : (Promise.resolve(undefined as unknown as T));
 }
 
 export type User = {
@@ -110,14 +120,13 @@ export type AreaNote = {
 };
 
 export const api = {
-  // POST /users/login => { message, user_id, name }
+  // Users / Auth
   login: (body: { email: string; password: string }) =>
     request<{ message: string; user_id: string; name: string }>("/users/login", {
       method: "POST",
       body: JSON.stringify(body),
     }),
-    
-  // CRUD utiles
+
   createUser: (b: { name: string; email: string; password: string; avatarUrl?: string }) =>
     request<User>("/users/", { method: "POST", body: JSON.stringify(b) }),
   getUsers: () => request<User[]>("/users/"),
@@ -125,85 +134,52 @@ export const api = {
   updateUser: (id: string, b: Partial<{ name: string; avatarUrl: string; password: string }>) =>
     request<User>(`/users/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteUser: (id: string) => request(`/users/${id}`, { method: "DELETE" }),
+
+  // Projects
   getProjectsByUser: (userId: string) =>
     request<Project[]>(`/projects/user/${userId}`),
   createProject: (body: ProjectCreateBody) =>
-    request<Project>("/projects/", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-    getProject: (id: string) => request<Project>(`/projects/${id}`),
-    getNote: (noteId: string) => request<Note>(`/notes/${noteId}`),
-    updateProject: (id: string, body: Partial<Project>) =>
-  request<Project>(`/projects/${id}`, {
-    method: "PUT",
-    body: JSON.stringify(body),
-  }),
-    /** Notes liées à un projet (backend/routes/project.py -> GET /projects/{project_id}/notes) */
-  async getProjectNotes(projectId: string) {
-    return request<ProjectNote[]>(`/projects/${projectId}/notes`);
-  },
-
-  /** Toutes les notes d'un utilisateur (backend/routes/note.py -> GET /notes/user/{user_id}) */
-  async getUserNotes(userId: string) {
-    return request<Note[]>(`/notes/user/${userId}`);
-  },
-
-  /** Créer une note (backend/routes/note.py -> POST /notes) */
-  async createNote(body: NoteCreateBody) {
-    return request<Note>(`/notes/`, {
-      method: "POST",
-      body: JSON.stringify(body),
-    });
-  },
-
-  /** Mettre à jour une note (backend/routes/note.py -> PUT /notes/{note_id}) */
-  async updateNote(noteId: string, body: NoteUpdateBody) {
-    return request<Note>(`/notes/${noteId}`, {
-      method: "PUT",
-      body: JSON.stringify(body),
-    });
-  },
-
-  /** Supprimer une note (backend/routes/note.py -> DELETE /notes/{note_id}) */
-  async deleteNote(noteId: string) {
-    return request<void>(`/notes/${noteId}`, { method: "DELETE" });
-  },
-
-  /** Lier une note existante à un projet (backend/routes/project.py -> POST /projects/{project_id}/notes/{note_id}) */
-  async attachNoteToProject(projectId: string, noteId: string) {
-    return request<{ message: string }>(`/projects/${projectId}/notes/${noteId}`, {
-      method: "POST",
-    });
-  },
-
+    request<Project>("/projects/", { method: "POST", body: JSON.stringify(body) }),
+  getProject: (id: string) => request<Project>(`/projects/${id}`),
+  updateProject: (id: string, body: Partial<Project>) =>
+    request<Project>(`/projects/${id}`, { method: "PUT", body: JSON.stringify(body) }),
   updateProjectStatus: (id: string, status: ProjectStatus) =>
-  request(`/projects/${id}`, {
-    method: "PUT",
-    body: JSON.stringify({ status }),
-  }),
+    request(`/projects/${id}`, { method: "PUT", body: JSON.stringify({ status }) }),
 
-  //Areas 
+  // Notes <-> Projects
+  getProjectNotes: (projectId: string) =>
+    request<ProjectNote[]>(`/projects/${projectId}/notes`),
+  attachNoteToProject: (projectId: string, noteId: string) =>
+    request<{ message: string }>(`/projects/${projectId}/notes/${noteId}`, { method: "POST" }),
 
+  // Notes
+  getNote: (noteId: string) => request<Note>(`/notes/${noteId}`),
+  getUserNotes: (userId: string) => request<Note[]>(`/notes/user/${userId}`),
+  createNote: (body: NoteCreateBody) =>
+    request<Note>(`/notes/`, { method: "POST", body: JSON.stringify(body) }),
+  updateNote: (noteId: string, body: NoteUpdateBody) =>
+    request<Note>(`/notes/${noteId}`, { method: "PUT", body: JSON.stringify(body) }),
+  deleteNote: (noteId: string) =>
+    request<void>(`/notes/${noteId}`, { method: "DELETE" }),
+
+  // Areas
   getAreasByUser: (userId: string) =>
     request<Area[]>(`/areas/user/${userId}`),
-
   getArea: (areaId: string) =>
     request<Area>(`/areas/${areaId}`),
-
   createArea: (body: AreaCreateBody) =>
     request<Area>(`/areas/`, { method: "POST", body: JSON.stringify(body) }),
-
   updateArea: (areaId: string, body: Partial<Omit<Area, "id"|"user_id"|"createdAt"|"updatedAt">>) =>
     request<Area>(`/areas/${areaId}`, { method: "PUT", body: JSON.stringify(body) }),
-
   deleteArea: (areaId: string) =>
     request<void>(`/areas/${areaId}`, { method: "DELETE" }),
 
-  // Notes liées à une area
+  // Notes <-> Areas
   getAreaNotes: (areaId: string) =>
     request<AreaNote[]>(`/areas/${areaId}/notes`),
-
   attachNoteToArea: (areaId: string, noteId: string) =>
     request<{ message: string }>(`/areas/${areaId}/notes/${noteId}`, { method: "POST" }),
 };
+
+// Optionnel: export pour logger l'origine utilisée (debug)
+export { API_ORIGIN };
