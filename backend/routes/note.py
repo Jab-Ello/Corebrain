@@ -6,6 +6,7 @@ from database.models import Note, User, Project, Area, Tag
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+import services.n8n_notify
 import uuid
 
 router = APIRouter(prefix="/notes", tags=["Notes"])

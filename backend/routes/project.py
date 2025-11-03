@@ -6,6 +6,7 @@ from database.models import Project, User, Note
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
+from services.n8n_notify import notify_n8n
 import uuid
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
@@ -88,6 +89,9 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
+
+    # Notifier N8N de la création du projet
+    notify_n8n(event="project_created", project_id=new_project.id)
     return new_project
 
 
@@ -124,6 +128,9 @@ def update_project(project_id: str, payload: ProjectUpdate, db: Session = Depend
     project.updatedAt = datetime.utcnow()
     db.commit()
     db.refresh(project)
+
+    # Notifier N8N de la mise à jour du projet
+    notify_n8n(event="project_updated", project_id=project.id)
     return project
 
 
@@ -161,7 +168,9 @@ def attach_note_to_project(project_id: str, note_id: str, db: Session = Depends(
     if note not in project.notes:
         project.notes.append(note)
         db.commit()
-
+    
+    # Notifier N8N de l’attachement de la note au projet
+    notify_n8n(event="note_attached_to_project", project_id=project.id)
     return {"message": f"Note '{note.title}' liée au projet '{project.name}'"}
 
 
