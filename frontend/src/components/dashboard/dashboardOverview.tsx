@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Card from "@/components/ui/card";
 import MiniStat from "@/components/dashboard/ministat";
 import { getSession } from "@/lib/session";
-import { api, type Project, type Note } from "@/lib/api";
+import { api, type Project, type Note, type Area } from "@/lib/api";
 
 export default function DashboardOverview() {
   const router = useRouter();
@@ -15,6 +15,8 @@ export default function DashboardOverview() {
 
   const [projectsCount, setProjectsCount] = useState<number | null>(null);
   const [notesCount, setNotesCount] = useState<number | null>(null);
+  const [areasCount, setAreasCount] = useState<number | null>(null);
+  const [archivesCount, setArchivesCount] = useState<number | null>(null);
 
   useEffect(() => {
     const s = getSession();
@@ -26,13 +28,21 @@ export default function DashboardOverview() {
     (async () => {
       try {
         setLoading(true);
-        const [projects, notes] = await Promise.all([
+
+        const [projects, notes, areas] = await Promise.all([
           api.getProjectsByUser(s.userId) as Promise<Project[]>,
           api.getUserNotes(s.userId) as Promise<Note[]>,
+          api.getAreasByUser(s.userId) as Promise<Area[]>,
         ]);
 
         setProjectsCount(projects.length);
         setNotesCount(notes.length);
+        setAreasCount(areas.length);
+
+        // handle both "archived" and "ARCHIVED"
+        const isArchived = (p: Project) =>
+          String(p.status).toLowerCase() === "archived";
+        setArchivesCount(projects.filter(isArchived).length);
       } catch (e: any) {
         setError(e?.message ?? "Unable to load dashboard data.");
       } finally {
@@ -41,25 +51,18 @@ export default function DashboardOverview() {
     })();
   }, [router]);
 
+  const show = (n: number | null) => (n !== null ? String(n) : (loading ? "…" : "0"));
+
   return (
     <Card title="Overview">
-      {/* Removed Weekly Focus block entirely */}
-
-      {/* MiniStats row */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-        <MiniStat label="Projects" value={projectsCount !== null ? String(projectsCount) : (loading ? "…" : "0")} />
-        <MiniStat label="Notes" value={notesCount !== null ? String(notesCount) : (loading ? "…" : "0")} />
-
-        {/* If you later expose these from the backend, add similar loaders: */}
-        {/* <MiniStat label="Areas" value={areasCount !== null ? String(areasCount) : (loading ? "…" : "0")} /> */}
-        {/* <MiniStat label="Resources" value={resourcesCount !== null ? String(resourcesCount) : (loading ? "…" : "0")} /> */}
+        <MiniStat label="Projects"  value={show(projectsCount)} />
+        <MiniStat label="Notes"     value={show(notesCount)} />
+        <MiniStat label="Areas"     value={show(areasCount)} />
+        <MiniStat label="Archives"  value={show(archivesCount)} />
       </div>
 
-      {error && (
-        <p className="mt-3 text-xs text-red-300">
-          {error}
-        </p>
-      )}
+      {error && <p className="mt-3 text-xs text-red-300">{error}</p>}
     </Card>
   );
 }

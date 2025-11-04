@@ -10,30 +10,31 @@ import string
 # ============ CONFIG ============
 TARGET_USER_ID = "87ffb41b-3efb-45b8-a411-2f714d074d67"
 
-SEED_PREFIX = "[para]"  # permet d'identifier et éviter doublons
-RANDOM_SEED = 1337      # reproductible
+SEED_PREFIX = "[para]"   # sert à identifier/supprimer sans toucher aux vraies données
+RANDOM_SEED = 1337       # reproductible
 
 COUNTS = {
-    "projects_work": 10,     # Projets "travail / études"
-    "projects_personal": 8,  # Projets personnels
-    "areas": 12,             # Domaines de responsabilité
-    "notes": 650,            # Volume de notes
-    "tags": 80,              # Vocabulaire
+    "projects_work": 8,       # Projets "travail / études"
+    "projects_personal": 6,   # Projets personnels
+    "areas": 10,              # Domaines de responsabilité
+    "notes": 420,             # Volume de notes (réaliste mais pas monstrueux)
+    "tags": 60,               # Vocabulaire
 }
 
-# répartition des types de notes
+# Répartition plus réaliste
 NOTE_MIX = {
-    "meeting": 0.18,
-    "todo": 0.20,
+    "meeting": 0.15,
+    "todo": 0.25,
     "review_weekly": 0.10,
-    "review_monthly": 0.05,
-    "learning": 0.17,
-    "resource": 0.22,
-    "retro": 0.08,
+    "review_monthly": 0.04,
+    "learning": 0.16,
+    "resource": 0.18,
+    "retro": 0.07,
+    "daily_log": 0.05,    # journaux courts du jour
 }
 
-BATCH_SIZE = 250
-DAYS_HISTORY = 420
+BATCH_SIZE = 200
+DAYS_HISTORY = 360
 
 # ============ HELPERS ============
 def gen_id() -> str:
@@ -43,9 +44,15 @@ def now_utc():
     return datetime.now(timezone.utc)
 
 def random_past_datetime(days_back=DAYS_HISTORY):
+    # Biais vers jours ouvrés (plus de notes en semaine)
     d = random.randint(0, days_back)
-    s = random.randint(0, 86400)
-    return now_utc() - timedelta(days=d, seconds=s)
+    base = now_utc() - timedelta(days=d)
+    # heure réaliste entre 08h et 21h, pics 10h/14h/19h
+    hour_choices = [8,9,10,10,11,14,14,15,16,19,19,20,21]
+    h = random.choice(hour_choices)
+    m = random.randint(0, 59)
+    s = random.randint(0, 59)
+    return base.replace(hour=h, minute=m, second=s, microsecond=0)
 
 def pick(lst, k=1):
     return random.sample(lst, k=min(k, len(lst)))
@@ -113,56 +120,60 @@ def clear_existing_seed(db, user_id: str, prefix: str):
 
 # ============ VOCAB & CATALOGS ============
 WORK_PROJECT_NAMES = [
-    "Refonte site vitrine", "Application mobile client", "Tableau de bord analytics",
-    "Automatisation facturation", "Proof of Concept IA", "Migration base de données",
-    "Amélioration performance front", "Refactoring API", "Accessibilité & RGAA",
-    "Documentation & Playbook"
+    "Refonte du site vitrine",
+    "Client mobile — MVP",
+    "Tableau de bord Analytics",
+    "Automatisation de la facturation",
+    "Proof of Concept IA",
+    "Migration base de données",
+    "Performance front-end",
+    "Refactoring API",
 ]
+
 STUDY_PROJECT_NAMES = [
-    "Cours d'Algorithmes avancés", "Projet Machine Learning", "Système distribué",
-    "Développement Web moderne", "Projet Data Visualization"
+    "Projet Machine Learning",
+    "Algorithmes avancés",
+    "Systèmes distribués",
+    "Dév Web moderne",
 ]
+
 PERSONAL_PROJECT_NAMES = [
-    "Semi-marathon printemps", "Aménagement appartement", "Budget & finances",
-    "Album photo familial", "Routine sommeil", "Défi lecture 12 livres",
-    "Cuisine meal-prep", "Roadtrip d'été"
+    "Préparation semi-marathon",
+    "Aménagement appartement",
+    "Budget personnel",
+    "Routine sommeil",
+    "Défi lecture",
+    "Album photo familial",
 ]
 
 AREA_NAMES = [
-    "Santé & Sport", "Carrière & Études", "Finances", "Famille & Amis",
-    "Maison & Logement", "Apprentissages", "Créativité & Écriture", "Projets Long Terme",
-    "Administratif", "Voyages", "Bénévolat & Communauté", "Routines & Systèmes"
+    "Santé & Sport",
+    "Carrière & Études",
+    "Finances",
+    "Famille & Amis",
+    "Maison & Logement",
+    "Apprentissages",
+    "Créativité & Écriture",
+    "Administratif",
+    "Voyages",
+    "Routines & Systèmes",
 ]
 
-RESOURCE_TOPICS = [
-    "productivité", "méthode PARA", "prise de notes", "python", "fastapi",
-    "nextjs", "sqlite", "mlflow", "pytorch", "scikit-learn", "nlp", "vision",
-    "gestion du temps", "habitudes", "course à pied", "musculation", "nutrition",
-    "sommeil", "finance perso", "investissement", "lecture active", "écriture"
+# tags thématiques (on préfixe pour pouvoir nettoyer proprement sans polluer de vrais tags)
+BASE_TAGS = [
+    "meeting", "todo", "review", "weekly", "monthly", "learning", "resource", "retro",
+    "pro", "perso", "priorité-haute", "priorité-moyenne", "priorité-basse",
+    "ml", "python", "fastapi", "nextjs", "sqlite", "pytorch", "nlp", "vision",
+    "temps", "habitudes", "course", "musculation", "nutrition", "sommeil",
+    "budget", "lecture", "écriture", "voyage", "app"
 ]
 
-MEETING_PHRASES = [
-    "Décisions prises", "Actions à entreprendre", "Questions ouvertes", "Risques & dépendances",
-    "Prochaines étapes", "Responsables", "Échéances", "Blocages", "Notes diverses"
-]
-TODO_PREFIX = [
-    "Faire", "Vérifier", "Préparer", "Terminer", "Mettre à jour", "Relire", "Tester", "Planifier"
-]
-REVIEW_TEMPL = [
-    "Ce qui a bien fonctionné", "Ce qui peut être amélioré", "Levier principal pour la semaine",
-    "Top 3 priorités", "Choses à arrêter", "Choses à continuer", "Choses à commencer"
-]
-RETRO_TEMPL = [
-    "Faits marquants", "Points de douleur", "Hypothèses", "Idées d'amélioration", "Expériences à tenter"
-]
+PEOPLE = ["Alice", "Bruno", "Camille", "David", "Emma", "Farid", "Gaëlle", "Hugo", "Inès", "Jonas", "Lina", "Maya"]
 
+# ============ GENERATORS (contenus réalistes) ============
 def generate_tags(db):
     tags = []
-    base = set()
-    base.update(RESOURCE_TOPICS)
-    base.update(["meeting", "todo", "review", "weekly", "monthly", "learning", "resource", "retro",
-                 "santé", "course", "musculation", "sommeil", "finance", "budget", "épargne",
-                 "pro", "perso", "lecture", "écriture", "cuisine", "voyage", "app"])
+    base = set(BASE_TAGS)
     while len(base) < COUNTS["tags"]:
         base.add(f"t{safe_token(3)}")
     for name in list(base)[:COUNTS["tags"]]:
@@ -177,6 +188,7 @@ def generate_tags(db):
 
 def ensure_projects(db, user: User):
     projects = []
+    # Travail/Études
     for base_name in WORK_PROJECT_NAMES + STUDY_PROJECT_NAMES:
         name = f"{SEED_PREFIX} {base_name}"
         existing = db.query(Project).filter(Project.user_id == user.id, Project.name == name).first()
@@ -186,12 +198,12 @@ def ensure_projects(db, user: User):
         status = random.choices(["ACTIVE","PAUSED","COMPLETED"], weights=[0.6,0.2,0.2])[0]
         p = Project(
             id=gen_id(), name=name,
-            description=f"Projet: {base_name}",
-            context=f"Contexte: {base_name} — ref {safe_token(5)}",
+            description=f"Objectif: {base_name} — cadrage, planning, livrables.",
+            context=f"Notes, specs et décisions liées à {base_name}.",
             status=status,
             startDate=created,
-            plannedEndDate=created + timedelta(days=random.randint(14,120)) if random.random()<0.7 else None,
-            endDate=created + timedelta(days=random.randint(30,200)) if status=="COMPLETED" else None,
+            plannedEndDate=created + timedelta(days=random.randint(30,120)) if random.random()<0.7 else None,
+            endDate=created + timedelta(days=random.randint(45,200)) if status=="COMPLETED" else None,
             priority=random.randint(0,3),
             color=f"#{random.randint(0, 0xFFFFFF):06X}",
             createdAt=created,
@@ -199,21 +211,23 @@ def ensure_projects(db, user: User):
             user_id=user.id,
         )
         db.add(p); projects.append(p)
+
+    # Perso
     for base_name in PERSONAL_PROJECT_NAMES[:COUNTS["projects_personal"]]:
         name = f"{SEED_PREFIX} {base_name}"
         existing = db.query(Project).filter(Project.user_id == user.id, Project.name == name).first()
         if existing:
             projects.append(existing); continue
         created = random_past_datetime()
-        status = random.choices(["ACTIVE","PAUSED","COMPLETED"], weights=[0.5,0.2,0.3])[0]
+        status = random.choices(["ACTIVE","PAUSED","COMPLETED"], weights=[0.55,0.2,0.25])[0]
         p = Project(
             id=gen_id(), name=name,
-            description=f"Projet perso: {base_name}",
-            context=f"Contexte perso — ref {safe_token(4)}",
+            description=f"Projet personnel: {base_name}",
+            context=f"Contexte, routines et suivi liés à {base_name}.",
             status=status,
             startDate=created,
-            plannedEndDate=created + timedelta(days=random.randint(10,120)) if random.random()<0.6 else None,
-            endDate=created + timedelta(days=random.randint(15,180)) if status=="COMPLETED" else None,
+            plannedEndDate=created + timedelta(days=random.randint(21,150)) if random.random()<0.6 else None,
+            endDate=created + timedelta(days=random.randint(30,180)) if status=="COMPLETED" else None,
             priority=random.randint(0,3),
             color=f"#{random.randint(0, 0xFFFFFF):06X}",
             createdAt=created,
@@ -221,6 +235,7 @@ def ensure_projects(db, user: User):
             user_id=user.id,
         )
         db.add(p); projects.append(p)
+
     db.flush()
     return projects
 
@@ -234,7 +249,7 @@ def ensure_areas(db, user: User):
         created = random_past_datetime()
         a = Area(
             id=gen_id(), name=name,
-            description=f"Domaine: {base_name}",
+            description=f"Domaine de responsabilité: {base_name}",
             color=f"#{random.randint(0, 0xFFFFFF):06X}",
             createdAt=created,
             updatedAt=created + timedelta(days=random.randint(0,60)),
@@ -244,71 +259,212 @@ def ensure_areas(db, user: User):
     db.flush()
     return areas
 
-def meeting_content():
-    pts = pick(MEETING_PHRASES, k=random.randint(3,6))
-    lines = []
-    for p in pts:
-        lines.append(f"### {p}")
-        for _ in range(random.randint(2,4)):
-            lines.append(f"- {p} → {titleize(safe_token(5))} ({safe_token(3)})")
+def meeting_content(project_name="Général"):
+    date = random_past_datetime().strftime("%d/%m/%Y %H:%M")
+    participants = ", ".join(pick(PEOPLE, k=random.randint(3,5)))
+    decisions = [
+        "Valider la portée du sprint",
+        "Décaler la livraison de 48h pour tests",
+        "Adopter la convention de nommage",
+        "Créer un job d’ETL nocturne",
+        "Prioriser correctifs P1 avant nouvelles features"
+    ]
+    actions = [
+        "Préparer la maquette Figma v2",
+        "Écrire les tests d’intégration API",
+        "Mettre à jour la documentation",
+        "Analyser les logs de performance",
+        "Planifier la démo client"
+    ]
+    owners = pick(PEOPLE, k=5)
+    lines = [
+        f"# Réunion {project_name} — {date}",
+        f"**Participants**: {participants}",
+        "## Décisions",
+    ]
+    for d in pick(decisions, k=random.randint(2,4)):
+        lines.append(f"- {d}.")
+    lines.append("## Actions")
+    for a, o in zip(pick(actions, k=random.randint(3,5)), owners):
+        due = (now_utc() + timedelta(days=random.randint(1,10))).date().isoformat()
+        lines.append(f"- [ ] {a} — _Responsable: {o}_ — **Échéance**: {due}")
+    lines.append("## Questions ouvertes")
+    lines.append("- Points à clarifier côté client (accès staging, données d’essai).")
+    lines.append("- Choix final du provider d’hébergement.")
     return "\n".join(lines)
 
 def todo_content():
-    lines = []
-    for _ in range(random.randint(4,8)):
-        prefix = random.choice(TODO_PREFIX)
-        lines.append(f"- [ ] {prefix} {titleize(safe_token(6))}")
-    lines.append("\nPriorités: 1) urgent 2) important 3) opportunités")
+    pool = [
+        "Répondre aux emails importants",
+        "Revoir le plan de la semaine",
+        "Écrire la spec de la fonctionnalité",
+        "Faire la séance de course (45')",
+        "Préparer meal-prep pour 3 jours",
+        "Mettre à jour le budget mensuel",
+        "Lire 20 pages du livre en cours",
+        " Ranger le bureau / câbles",
+        "Sauvegarder le projet"
+    ]
+    lines = ["# À faire"]
+    lines.append("## Aujourd’hui")
+    for _ in range(random.randint(2,4)):
+        t = random.choice(pool)
+        checkbox = "[x]" if random.random() < 0.4 else "[ ]"
+        lines.append(f"- {checkbox} {t}")
+    lines.append("## Cette semaine")
+    for _ in range(random.randint(3,6)):
+        t = random.choice(pool)
+        est = random.choice(["(~30min)", "(~1h)", "(~2h)", ""])
+        prio = random.choice(["(P1)", "(P2)", "(P3)"])
+        lines.append(f"- [ ] {t} {est} {prio}".strip())
+    lines.append("\nNotes: éviter réunions le matin, gros focus block 10h–12h.")
     return "\n".join(lines)
 
 def review_content(kind="weekly"):
-    head = f"# Revue {kind}\n"
-    sec = pick(REVIEW_TEMPL, k=random.randint(3,5))
+    head = f"# Revue {kind.capitalize()}\n"
     lines = [head]
-    for s in sec:
-        lines.append(f"## {s}")
-        for _ in range(random.randint(2,4)):
-            lines.append(f"- {titleize(safe_token(5))}")
+    lines.append("## Ce qui a bien fonctionné")
+    lines += [f"- Bon focus {random.randint(6,12)}h en deep work.",
+              "- Sport maintenu (3 séances).",
+              "- Communication plus claire avec l’équipe."]
+    lines.append("## À améliorer")
+    lines += ["- Bloquer le scroll le soir.",
+              "- Clarifier les objectifs avant de démarrer."]
+    lines.append("## Priorités clés")
+    lines += ["- Finaliser une feature de bout en bout.",
+              "- Préparer la démo/présentation.",
+              "- Routine sommeil stable."]
+    if kind == "weekly":
+        lines.append("## Indicateurs")
+        lines += [f"- Kilométrage course: {random.randint(15,40)} km",
+                  f"- Pages lues: {random.randint(40,120)}",
+                  f"- Sessions de code: {random.randint(5,12)}"]
+    else:
+        lines.append("## Bilan du mois")
+        lines += [f"- Projets avancés: {random.randint(2,5)}",
+                  f"- Apprentissage: {random.choice(['FastAPI', 'Pandas', 'Next.js'])}",
+                  "- Points d’attention: surcharge la dernière semaine."]
     return "\n".join(lines)
 
 def learning_content():
-    topic = random.choice(RESOURCE_TOPICS)
+    topic = random.choice(["Python", "FastAPI", "SQL", "Next.js", "Pandas", "Pydantic"])
+    snippets = {
+        "Python": """```python
+def chunks(seq, n):
+    for i in range(0, len(seq), n):
+        yield seq[i:i+n]
+```""",
+        "FastAPI": """```python
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/health")
+def health():
+    return {"ok": True}
+```""",
+        "SQL": """```sql
+SELECT p.id, p.name, COUNT(n.id) AS notes
+FROM projects p
+LEFT JOIN project_notes pn ON pn.project_id = p.id
+LEFT JOIN notes n ON n.id = pn.note_id
+GROUP BY p.id, p.name
+ORDER BY notes DESC;
+```""",
+        "Next.js": """```tsx
+export default function Page() {
+  return <main className="p-6">Hello 👋</main>
+}
+```""",
+        "Pandas": """```python
+import pandas as pd
+df = pd.DataFrame({"a":[1,2,3]})
+df["b"] = df["a"].rolling(2).mean()
+```""",
+        "Pydantic": """```python
+from pydantic import BaseModel
+
+class Project(BaseModel):
+    id: str
+    name: str
+```"""
+    }
     lines = [
-        f"# Notes d'apprentissage — {topic}",
-        f"- Concept clé: {titleize(safe_token(5))}",
-        f"- Exemple: {safe_token(8)}",
-        f"- Lien: https://example.com/{topic}/{safe_token(6)}",
-        "- Exercices: ",
+        f"# Notes d’apprentissage — {topic}",
+        "- Concepts clés:",
+        f"  - {titleize(safe_token(5))}",
+        f"  - {titleize(safe_token(5))}",
+        "- Exemples & snippets:",
+        snippets[topic],
+        "- À pratiquer cette semaine:",
+        "  - Refaire un petit projet d’exercice",
+        "  - Écrire des tests unitaires"
     ]
-    for _ in range(random.randint(2,4)):
-        lines.append(f"  - {titleize(safe_token(5))}")
     return "\n".join(lines)
 
 def resource_content():
-    topic = random.choice(RESOURCE_TOPICS)
-    lines = [
-        f"# Ressource: {titleize(topic)}",
-        f"- Type: {random.choice(['article','vidéo','podcast','outil','livre'])}",
-        f"- URL: https://example.com/{topic}/{safe_token(5)}",
-        f"- Pourquoi utile: {titleize(safe_token(7))}",
-        "- Idées d'usage:",
+    sources = [
+        ("Documentation FastAPI", "https://fastapi.tiangolo.com/"),
+        ("Docs Python", "https://docs.python.org/3/"),
+        ("Pandas User Guide", "https://pandas.pydata.org/docs/"),
+        ("Next.js Docs", "https://nextjs.org/docs"),
+        ("SQL Tutorial", "https://www.sqltutorial.org/")
     ]
-    for _ in range(random.randint(2,4)):
-        lines.append(f"  - {titleize(safe_token(5))}")
+    title, url = random.choice(sources)
+    why = random.choice([
+        "explications claires + exemples",
+        "meilleure pratique pour structurer un projet",
+        "référence fiable pour les méthodes",
+        "guides étape par étape"
+    ])
+    lines = [
+        f"# Ressource: {title}",
+        f"- Type: {random.choice(['article','documentation','vidéo','podcast','outil'])}",
+        f"- Lien: {url}",
+        f"- Pourquoi utile: {why}",
+        "- À retenir:",
+        f"  - {titleize(safe_token(6))}",
+        f"  - {titleize(safe_token(6))}",
+    ]
     return "\n".join(lines)
 
-def retro_content():
-    sec = pick(RETRO_TEMPL, k=random.randint(3,5))
-    lines = []
-    for s in sec:
-        lines.append(f"## {s}")
-        for _ in range(random.randint(2,4)):
-            lines.append(f"- {titleize(safe_token(6))}")
+def retro_content(project_name="Général"):
+    lines = [
+        f"# Rétrospective — {project_name}",
+        "## Faits marquants",
+        "- Livraison de la v1 en staging.",
+        "- Retour positif du client sur la navigation.",
+        "## Points de douleur",
+        "- Délais sur les tests end-to-end.",
+        "- Petite dette technique accumulée.",
+        "## Idées d’amélioration",
+        "- Définir une Definition of Done plus stricte.",
+        "- Pair programming 2x/semaine.",
+        "## Expériences à tenter",
+        "- Daily asynchrone sur 3 jours.",
+        "- Démo interne courte chaque vendredi."
+    ]
+    return "\n".join(lines)
+
+def daily_log_content():
+    mood = random.choice(["👍 énergique", "😐 moyen", "🫥 fatigué"])
+    focus = random.choice(["bon focus", "focus moyen", "focus difficile"])
+    lines = [
+        "# Journal du jour",
+        f"- Humeur: {mood}",
+        f"- Focus: {focus}",
+        "- 1 chose importante accomplie: ",
+        f"  - {titleize(safe_token(6))}",
+        "- À faire demain:",
+        "  - Continuer la tâche en cours",
+        "  - Bloquer un créneau de deep work (10h–12h)"
+    ]
     return "\n".join(lines)
 
 def make_note(db, user, title, content, created, updated, tags, projects=None, areas=None, pinned=False):
     existing = db.query(Note).filter(Note.user_id == user.id, Note.title == title).first()
     if existing:
+        # enrichit si la note existe déjà
         for t in tags:
             if t and t not in existing.tags:
                 existing.tags.append(t)
@@ -321,11 +477,13 @@ def make_note(db, user, title, content, created, updated, tags, projects=None, a
         db.add(existing)
         return existing
 
+    first_line = content.split("\n", 1)[0]
+    summary = first_line[:180] if first_line else ""
     n = Note(
         id=gen_id(),
         title=title,
         content=content,
-        summary=content.split("\n", 1)[0][:180],
+        summary=summary,
         wordCount=len(content.split()),
         pinned=pinned,
         createdAt=created,
@@ -361,16 +519,16 @@ def main():
 
         # Tags utilitaires par nom
         tag_map = {t.name: t for t in tags}
-        t_meeting   = tag_map.get(f"{SEED_PREFIX} meeting")
-        t_todo      = tag_map.get(f"{SEED_PREFIX} todo")
-        t_review    = tag_map.get(f"{SEED_PREFIX} review")
-        t_weekly    = tag_map.get(f"{SEED_PREFIX} weekly")
-        t_monthly   = tag_map.get(f"{SEED_PREFIX} monthly")
-        t_learning  = tag_map.get(f"{SEED_PREFIX} learning")
-        t_resource  = tag_map.get(f"{SEED_PREFIX} resource")
-        t_retro     = tag_map.get(f"{SEED_PREFIX} retro")
-        t_pro       = tag_map.get(f"{SEED_PREFIX} pro")
-        t_perso     = tag_map.get(f"{SEED_PREFIX} perso")
+        t_meeting   = tag_map.get(f"{SEED_PREFIX} meeting")   or get_or_create_tag(db, f"{SEED_PREFIX} meeting")
+        t_todo      = tag_map.get(f"{SEED_PREFIX} todo")      or get_or_create_tag(db, f"{SEED_PREFIX} todo")
+        t_review    = tag_map.get(f"{SEED_PREFIX} review")    or get_or_create_tag(db, f"{SEED_PREFIX} review")
+        t_weekly    = tag_map.get(f"{SEED_PREFIX} weekly")    or get_or_create_tag(db, f"{SEED_PREFIX} weekly")
+        t_monthly   = tag_map.get(f"{SEED_PREFIX} monthly")   or get_or_create_tag(db, f"{SEED_PREFIX} monthly")
+        t_learning  = tag_map.get(f"{SEED_PREFIX} learning")  or get_or_create_tag(db, f"{SEED_PREFIX} learning")
+        t_resource  = tag_map.get(f"{SEED_PREFIX} resource")  or get_or_create_tag(db, f"{SEED_PREFIX} resource")
+        t_retro     = tag_map.get(f"{SEED_PREFIX} retro")     or get_or_create_tag(db, f"{SEED_PREFIX} retro")
+        t_pro       = tag_map.get(f"{SEED_PREFIX} pro")       or get_or_create_tag(db, f"{SEED_PREFIX} pro")
+        t_perso     = tag_map.get(f"{SEED_PREFIX} perso")     or get_or_create_tag(db, f"{SEED_PREFIX} perso")
 
         # Notes épinglées (rituels PARA)
         pinned_titles = [
@@ -378,20 +536,39 @@ def main():
             f"{SEED_PREFIX} Monthly Review — Modèle",
             f"{SEED_PREFIX} Liste Projets actifs",
             f"{SEED_PREFIX} Routines quotidiennes",
+            f"{SEED_PREFIX} Inbox — Captures rapides",
         ]
         for pt in pinned_titles:
+            if "Weekly" in pt:
+                content = review_content("weekly")
+                tags_pt = [t_review, t_weekly]
+            elif "Monthly" in pt:
+                content = review_content("monthly")
+                tags_pt = [t_review, t_monthly]
+            elif "Routines" in pt:
+                content = "\n".join([
+                    "- Matin: eau, mobilité, focus block (10h–12h)",
+                    "- Midi: marche 15', protéines",
+                    "- Soir: déconnexion 21h, journal, lecture"
+                ])
+                tags_pt = [t_perso]
+            elif "Liste Projets" in pt:
+                actifs = [p.name for p in projects if p.status == "ACTIVE"]
+                content = "\n".join([f"- {n}" for n in actifs]) or "- (aucun)"
+                tags_pt = [t_pro]
+            else:
+                content = "\n".join([
+                    "- Idée: …",
+                    "- À lire: …",
+                    "- À vérifier: …"
+                ])
+                tags_pt = [t_perso]
+
             make_note(
-                db, user, pt,
-                review_content("weekly" if "Weekly" in pt else "monthly") if "Review" in pt else
-                "\n".join([
-                    "- Matin: eau, mobilité, focus block",
-                    "- Midi: marche, protéines, deep work",
-                    "- Soir: déconnexion, journal, lecture"
-                ]) if "Routines" in pt else
-                "\n".join([f"- {p.name}" for p in projects if p.status == "ACTIVE"]) or "-",
+                db, user, pt, content,
                 created=random_past_datetime(),
                 updated=now_utc(),
-                tags=[t_review or get_or_create_tag(db, f"{SEED_PREFIX} review")],
+                tags=tags_pt,
                 pinned=True
             )
 
@@ -400,51 +577,76 @@ def main():
         types = list(NOTE_MIX.keys())
         probs = list(NOTE_MIX.values())
 
-        for i in range(COUNTS["notes"]):
+        for _ in range(COUNTS["notes"]):
             kind = random.choices(types, weights=probs)[0]
             created = random_past_datetime()
-            updated = created + timedelta(days=random.randint(0, 45))
+            updated = created + timedelta(days=random.randint(0, 20))
 
-            proj = random.choice(projects) if random.random() < 0.75 else None
+            proj = random.choice(projects) if random.random() < 0.7 else None
             ars = pick(areas, k=random.randint(0,2))
-            tgs = []
+
+            # base de tags réalistes
+            auto_tags = []
+            if proj:
+                auto_tags.append(t_pro)
+            else:
+                if random.random() < 0.5: auto_tags.append(t_perso)
 
             if kind == "meeting":
-                title = f"{SEED_PREFIX} CR réunion — {proj.name.split(SEED_PREFIX+' ')[-1] if proj else 'Général'} — {created.date()}"
-                content = meeting_content()
-                tgs = [t_meeting or get_or_create_tag(db, f"{SEED_PREFIX} meeting"), t_pro if proj else t_perso]
+                base_name = proj.name.split(SEED_PREFIX+' ')[-1] if proj else 'Général'
+                title = f"{SEED_PREFIX} CR réunion — {base_name} — {created.strftime('%Y-%m-%d')}"
+                content = meeting_content(base_name)
+                tags_note = [t_meeting] + auto_tags
             elif kind == "todo":
-                title = f"{SEED_PREFIX} À faire — {safe_token(4)}"
+                title = f"{SEED_PREFIX} À faire — {created.strftime('%a %d %b')}"
                 content = todo_content()
-                tgs = [t_todo or get_or_create_tag(db, f"{SEED_PREFIX} todo")]
+                tags_note = [t_todo] + auto_tags + [random.choice([t_pro, t_perso])]
             elif kind == "review_weekly":
                 title = f"{SEED_PREFIX} Weekly Review — Semaine {created.isocalendar()[1]} {created.year}"
                 content = review_content("weekly")
-                tgs = [t_review or get_or_create_tag(db, f"{SEED_PREFIX} review"), t_weekly or get_or_create_tag(db, f"{SEED_PREFIX} weekly")]
+                tags_note = [t_review, t_weekly] + auto_tags
             elif kind == "review_monthly":
                 title = f"{SEED_PREFIX} Monthly Review — {created.strftime('%B %Y')}"
                 content = review_content("monthly")
-                tgs = [t_review or get_or_create_tag(db, f"{SEED_PREFIX} review"), t_monthly or get_or_create_tag(db, f"{SEED_PREFIX} monthly")]
+                tags_note = [t_review, t_monthly] + auto_tags
             elif kind == "learning":
-                title = f"{SEED_PREFIX} Notes d'apprentissage — {safe_token(5)}"
+                title = f"{SEED_PREFIX} Notes d’apprentissage — {safe_token(5)}"
                 content = learning_content()
-                tgs = [t_learning or get_or_create_tag(db, f"{SEED_PREFIX} learning")]
+                tags_note = [t_learning] + auto_tags
             elif kind == "resource":
                 title = f"{SEED_PREFIX} Ressource — {safe_token(5)}"
                 content = resource_content()
-                tgs = [t_resource or get_or_create_tag(db, f"{SEED_PREFIX} resource")]
+                tags_note = [t_resource] + auto_tags
             elif kind == "retro":
-                title = f"{SEED_PREFIX} Rétrospective — {proj.name.split(SEED_PREFIX+' ')[-1] if proj else 'Général'} — {created.date()}"
-                content = retro_content()
-                tgs = [t_retro or get_or_create_tag(db, f"{SEED_PREFIX} retro")]
+                base_name = proj.name.split(SEED_PREFIX+' ')[-1] if proj else 'Général'
+                title = f"{SEED_PREFIX} Rétrospective — {base_name} — {created.strftime('%Y-%m-%d')}"
+                content = retro_content(base_name)
+                tags_note = [t_retro] + auto_tags
+            elif kind == "daily_log":
+                title = f"{SEED_PREFIX} Journal — {created.strftime('%Y-%m-%d')}"
+                content = daily_log_content()
+                tags_note = [t_perso]
             else:
                 title = f"{SEED_PREFIX} Note — {safe_token(6)}"
                 content = "Note"
-                tgs = []
+                tags_note = auto_tags
 
-            tgs = [tg for tg in tgs if tg is not None]
+            # Ajout de 0–2 tags techniques aléatoires pour varier
+            extra_tag_names = [
+                f"{SEED_PREFIX} python", f"{SEED_PREFIX} fastapi", f"{SEED_PREFIX} nextjs",
+                f"{SEED_PREFIX} sqlite", f"{SEED_PREFIX} ml", f"{SEED_PREFIX} nlp",
+                f"{SEED_PREFIX} vision", f"{SEED_PREFIX} sommeil", f"{SEED_PREFIX} budget",
+                f"{SEED_PREFIX} lecture"
+            ]
+            for _ in range(random.randint(0,2)):
+                nm = random.choice(extra_tag_names)
+                tags_note.append(get_or_create_tag(db, nm))
+
+            # Nettoie None & doublons
+            tags_note = [t for t in set(tags_note) if t is not None]
             ps = [proj] if proj else []
-            make_note(db, user, title, content, created, updated, tgs, projects=ps, areas=ars, pinned=False)
+
+            make_note(db, user, title, content, created, updated, tags_note, projects=ps, areas=ars, pinned=False)
             total_notes += 1
 
             if total_notes % BATCH_SIZE == 0:

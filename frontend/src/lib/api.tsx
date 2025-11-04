@@ -53,7 +53,7 @@ export type NoteCreateBody = {
   content: string;
   summary?: string | null;
   pinned?: boolean;
-  project_ids?: string[];          // lier dès la création
+  project_ids?: string[];
   area_ids?: string[];
   tag_names?: string[];
 };
@@ -70,6 +70,19 @@ export type NoteUpdateBody = {
 
 export type ProjectStatus = "active" | "archived";
 export const PROJECT_STATUSES: ProjectStatus[] = ["active", "archived"];
+
+// 🔔 Types pour le déclenchement N8N
+export type AgentTriggerBody = {
+  action?: "analyze" | "summarize" | "plan" | "triage";
+  max_tokens?: number;
+  dry_run?: boolean;
+};
+export type TriggerResponse = {
+  ok: boolean;
+  queued?: boolean;
+  project_id?: string;
+  message?: string;
+};
 
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const url = CONFIG.url.api(path); // <-- centralisé
@@ -146,6 +159,13 @@ export const api = {
   updateProjectStatus: (id: string, status: ProjectStatus) =>
     request(`/projects/${id}`, { method: "PUT", body: JSON.stringify({ status }) }),
 
+  // 🔔 Nouveau : déclencher le workflow N8N pour un projet
+  triggerProjectAgent: (projectId: string, body?: AgentTriggerBody) =>
+    request<TriggerResponse>(`/projects/${projectId}/trigger`, {
+      method: "POST",
+      body: JSON.stringify(body ?? {}),
+    }),
+
   // Notes <-> Projects
   getProjectNotes: (projectId: string) =>
     request<ProjectNote[]>(`/projects/${projectId}/notes`),
@@ -180,10 +200,12 @@ export const api = {
   attachNoteToArea: (areaId: string, noteId: string) =>
     request<{ message: string }>(`/areas/${areaId}/notes/${noteId}`, { method: "POST" }),
 
+  // AI Agent Chat
   agentChat: (body: { user_id: string; conversation_id?: string | null; message: string }) =>
-  request<{ conversation_id?: string; reply?: string }>(CONFIG.endpoints.agentChat(), {
-    method: "POST",
-    body: JSON.stringify(body),}),
+    request<{ conversation_id?: string; reply?: string }>(CONFIG.endpoints.agentChat(), {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };
 
 // Optionnel: export pour logger l'origine utilisée (debug)
