@@ -22,11 +22,13 @@ from routes.user import router as user_router
 from routes.project import router as project_router
 from routes.note import router as note_router
 from routes.area import router as area_router
+from routes import project
 app.include_router(agent_router)
 app.include_router(user_router)
 app.include_router(project_router)
 app.include_router(note_router)
 app.include_router(area_router)
+app.include_router(project.router)
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST = BASE_DIR / "frontend_dist"
