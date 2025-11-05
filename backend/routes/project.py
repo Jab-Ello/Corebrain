@@ -247,3 +247,115 @@ def get_last_agent_todo():
     if not last_agent_todo:
         raise HTTPException(status_code=404, detail="Aucune To-Do reçue de N8N pour le moment.")
     return last_agent_todo
+
+###############################################################
+# RÉCEPTION DE L'ANALYSE ENVOYÉE PAR N8N
+###############################################################
+last_agent_analysis = None
+
+@router.post("/{project_id}/agent/analysis/latest", status_code=status.HTTP_200_OK)
+async def receive_agent_analysis(project_id: str, request: Request, db: Session = Depends(get_db)):
+    """
+    🔹 Reçoit depuis N8N l'analyse générée par l'agent Analyste.
+    """
+    global last_agent_analysis
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projet introuvable")
+
+    payload = await request.json()
+
+    last_agent_analysis = {
+        "project_id": project_id,
+        "analyse": payload.get("analyse", payload),  # accepte {"analysis": {...}} ou JSON brut
+        "receivedAt": datetime.utcnow().isoformat()
+    }
+
+    print(f"📥 Analyse reçue pour le projet {project_id} :", last_agent_analysis)
+    return {"ok": True, "stored": True, "project_id": project_id}
+
+
+@router.get("/agent/analysis/latest", status_code=status.HTTP_200_OK)
+def get_last_agent_analysis():
+    """
+    🔹 Permet de consulter la dernière analyse reçue (tous projets confondus).
+    """
+    if not last_agent_analysis:
+        raise HTTPException(status_code=404, detail="Aucune analyse reçue de N8N pour le moment.")
+    return last_agent_analysis
+
+
+###############################################################
+# RÉCEPTION DES OBJECTIFS ENVOYÉS PAR N8N
+###############################################################
+last_agent_objectives = None
+
+@router.post("/{project_id}/agent/objectives/latest", status_code=status.HTTP_200_OK)
+async def receive_agent_objectives(project_id: str, request: Request, db: Session = Depends(get_db)):
+    """
+    🔹 Reçoit depuis N8N les objectifs générés par l'agent Objectives.
+    """
+    global last_agent_objectives
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projet introuvable")
+
+    payload = await request.json()
+
+    last_agent_objectives = {
+        "project_id": project_id,
+        "objectives": payload.get("objectives", payload),
+        "receivedAt": datetime.utcnow().isoformat()
+    }
+
+    print(f"📥 Objectifs reçus pour le projet {project_id} :", last_agent_objectives)
+    return {"ok": True, "stored": True, "project_id": project_id}
+
+
+@router.get("/agent/objectives/latest", status_code=status.HTTP_200_OK)
+def get_last_agent_objectives():
+    """
+    🔹 Permet de consulter les derniers objectifs reçus (tous projets confondus).
+    """
+    if not last_agent_objectives:
+        raise HTTPException(status_code=404, detail="Aucun objectif reçu de N8N pour le moment.")
+    return last_agent_objectives
+
+###############################################################
+# RÉCEPTION DES DEADLINES ENVOYÉES PAR N8N
+###############################################################
+last_agent_deadlines = None
+
+@router.post("/{project_id}/agent/todos/latest", status_code=status.HTTP_200_OK)
+async def receive_agent_todos(project_id: str, request: Request, db: Session = Depends(get_db)):
+    """
+    🔹 Reçoit depuis N8N la To-Do list générée par l’agent Deadline.
+    """
+    global last_agent_deadlines
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projet introuvable")
+
+    payload = await request.json()
+
+    last_agent_deadlines = {
+        "project_id": project_id,
+        "todos": payload.get("todos", payload),
+        "receivedAt": datetime.utcnow().isoformat()
+    }
+
+    print(f"📥 Deadlines reçues pour le projet {project_id} :", last_agent_deadlines)
+    return {"ok": True, "stored": True, "project_id": project_id}
+
+
+@router.get("/agent/todos/latest", status_code=status.HTTP_200_OK)
+def get_last_agent_todos():
+    """
+    🔹 Permet de consulter la dernière To-Do reçue (tous projets confondus).
+    """
+    if not last_agent_deadlines:
+        raise HTTPException(status_code=404, detail="Aucune To-Do reçue pour le moment.")
+    return last_agent_deadlines
