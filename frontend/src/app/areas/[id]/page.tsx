@@ -13,10 +13,10 @@ import {
 } from "@/lib/api";
 
 type UiNote = {
-  id: string;        // note_id normalisé
+  id: string;        
   title: string;
   content: string;
-  createdAt: string; // ISO
+  createdAt: string; 
 };
 
 export default function AreaDetailPage() {
@@ -28,20 +28,17 @@ export default function AreaDetailPage() {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  // Edit area (simple)
   const [editAreaOpen, setEditAreaOpen] = useState(false);
   const [ename, setEName] = useState("");
   const [edesc, setEDesc] = useState("");
   const [ecolor, setEColor] = useState("");
   const [savingArea, setSavingArea] = useState(false);
 
-  // Create note in this area
   const [createOpen, setCreateOpen] = useState(false);
   const [ntitle, setNTitle] = useState("");
   const [ncontent, setNContent] = useState("");
   const [savingNote, setSavingNote] = useState(false);
 
-  // Edit note (NEW)
   const [noteEditOpen, setNoteEditOpen] = useState(false);
   const [editing, setEditing] = useState<UiNote | null>(null);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -74,7 +71,6 @@ export default function AreaDetailPage() {
     })();
   }, [id, router]);
 
-  // ------- Edit Area
   const openEditArea = () => {
     if (!area) return;
     setEName(area.name);
@@ -100,7 +96,6 @@ export default function AreaDetailPage() {
     }
   };
 
-  // ------- Create Note in Area
   const createNoteInArea = async () => {
     const s = getSession();
     if (!s) { router.replace("/login"); return; }
@@ -128,7 +123,6 @@ export default function AreaDetailPage() {
     }
   };
 
-  // ------- Edit Note (NEW)
   const openEditNote = (n: UiNote) => {
     setEditing({ ...n });
     setEditError(null);
@@ -279,7 +273,6 @@ export default function AreaDetailPage() {
         </div>
       )}
 
-      {/* CREATE NOTE MODAL */}
       {createOpen && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setCreateOpen(false)} />
@@ -312,7 +305,6 @@ export default function AreaDetailPage() {
         </div>
       )}
 
-      {/* EDIT NOTE MODAL (NEW) */}
       {noteEditOpen && editing && (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={closeEditNote} />

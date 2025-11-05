@@ -1,4 +1,3 @@
-// ⬅️ agent IA (adapte le chemin si besoin)
 "use client";
 export const dynamic = "force-dynamic";
 
@@ -21,15 +20,11 @@ export default function ProjectDetailsPage() {
   const [savingStatus, setSavingStatus] = useState(false);
   const [actionErr, setActionErr] = useState<string | null>(null);
 
-  // 🔔 États pour le déclenchement N8N
   const [triggering, setTriggering] = useState(false);
   const [triggerMsg, setTriggerMsg] = useState<string | null>(null);
 
-  // ------------------------------------------------------------
-  // 🔹 Charger le projet
-  // ------------------------------------------------------------
   useEffect(() => {
-    if (!projectId) return; // 🚫 évite l'appel si ID non encore dispo
+    if (!projectId) return; 
 
     const s = getSession();
     if (!s) {
@@ -51,9 +46,6 @@ export default function ProjectDetailsPage() {
     })();
   }, [projectId, router]);
 
-  // ------------------------------------------------------------
-  // 🔹 Sauvegarder le statut
-  // ------------------------------------------------------------
   const saveStatus = async () => {
     if (!project) return;
     try {
@@ -69,9 +61,6 @@ export default function ProjectDetailsPage() {
     }
   };
 
-  // ------------------------------------------------------------
-  // 🔹 Archiver / désarchiver
-  // ------------------------------------------------------------
   const toggleArchive = async () => {
     if (!project) return;
     const target =
@@ -89,17 +78,14 @@ export default function ProjectDetailsPage() {
     }
   };
 
-  // ------------------------------------------------------------
-  // 🔔 Déclencher le workflow N8N (bouton)
-  // ------------------------------------------------------------
   const triggerN8N = async () => {
     if (!project) return;
     try {
       setTriggering(true);
       setTriggerMsg(null);
       await api.triggerProjectAgent(project.id, {
-        action: "analyze",   // libre : "analyze" | "summarize" | "plan" | "triage"
-        max_tokens: 1200,    // limite démo si gérée côté n8n
+        action: "analyze",   
+        max_tokens: 1200,    
         dry_run: false,
       });
       setTriggerMsg("Analyse lancée : N8N a bien été déclenché.");
@@ -110,9 +96,6 @@ export default function ProjectDetailsPage() {
     }
   };
 
-  // ------------------------------------------------------------
-  // 🔹 États de chargement / erreur
-  // ------------------------------------------------------------
   if (loading)
     return <div className="p-6 text-sm text-white/70">Chargement du projet…</div>;
 
@@ -133,12 +116,8 @@ export default function ProjectDetailsPage() {
 
   const isArchived = (project.status || "").toLowerCase() === "archived";
 
-  // ------------------------------------------------------------
-  // 🔹 Rendu principal
-  // ------------------------------------------------------------
   return (
     <main className="p-6 space-y-6">
-      {/* Header avec actions */}
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-3xl font-bold">{project.name}</h1>
 
@@ -179,9 +158,7 @@ export default function ProjectDetailsPage() {
         </div>
       </div>
 
-      {/* Carte du projet */}
       <div className="rounded-2xl bg-white/5 border border-white/10 p-6 shadow-lg">
-        {/* Header infos */}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-2">
@@ -194,7 +171,6 @@ export default function ProjectDetailsPage() {
               </span>
             </div>
 
-            {/* Sélecteur de statut + bouton Save */}
             <div className="flex items-center gap-2">
               <select
                 className="rounded-lg bg-white/5 border border-white/10 px-2 py-1 text-xs"
@@ -224,7 +200,6 @@ export default function ProjectDetailsPage() {
 
         {actionErr && <p className="mb-4 text-xs text-red-300">{actionErr}</p>}
 
-        {/* Description */}
         <section className="mb-6">
           <h2 className="text-sm uppercase tracking-wider text-white/60 mb-2">
             Description
@@ -240,7 +215,6 @@ export default function ProjectDetailsPage() {
           )}
         </section>
 
-        {/* Infos supplémentaires */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           <div className="rounded-xl bg-white/5 border border-white/10 p-4">
             <div className="text-xs text-white/60 mb-1">Contexte</div>
@@ -272,7 +246,6 @@ export default function ProjectDetailsPage() {
         </section>
       </div>
 
-      {/* 🔘 Bouton “Trigger N8N” au-dessus de l’agent */}
       <div className="rounded-2xl bg-white/5 border border-white/10 p-4 shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -296,7 +269,6 @@ export default function ProjectDetailsPage() {
         )}
       </div>
 
-      {/* 🔹 Agent IA contextuel au projet */}
       <AIAgent projectId={project.id} />
     </main>
   );

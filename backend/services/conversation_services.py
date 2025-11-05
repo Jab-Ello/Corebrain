@@ -1,4 +1,3 @@
-# backend/services/conversation_services.py
 from typing import List, Optional
 from datetime import datetime
 
@@ -8,15 +7,11 @@ from .storage_services import (
     add_message as _add_message,
 )
 
-# ✅ On lit le contexte projet + notes depuis la DB
 from database.database import SessionLocal
 from database.models import Project, Note, project_notes
 
 DEFAULT_SYSTEM_PROMPT = "Tu es un assistant utile, concis et amical."
 
-# ------------------------------------------------------------
-# Construit un prompt système spécifique au projet
-# ------------------------------------------------------------
 def _build_project_system_prompt(project_id: Optional[str]) -> str:
     if not project_id:
         return DEFAULT_SYSTEM_PROMPT
@@ -27,7 +22,6 @@ def _build_project_system_prompt(project_id: Optional[str]) -> str:
         if not proj:
             return DEFAULT_SYSTEM_PROMPT
 
-        # Notes liées: pinned d'abord, puis plus récentes
         notes_q = (
             db.query(Note)
             .join(project_notes, Note.id == project_notes.c.note_id)
@@ -39,7 +33,6 @@ def _build_project_system_prompt(project_id: Optional[str]) -> str:
 
         notes_block = []
         for n in notes:
-            # on préfère summary si dispo, sinon un extrait court du contenu
             preview = (n.summary or (n.content or "")[:300]).replace("\n", " ").strip()
             notes_block.append(f"- {n.title}: {preview}")
 
@@ -59,10 +52,6 @@ def _build_project_system_prompt(project_id: Optional[str]) -> str:
     finally:
         db.close()
 
-
-# ------------------------------------------------------------
-# Créer / retrouver une conversation (clé isolée par projet)
-# ------------------------------------------------------------
 def get_or_create_conversation(
     user_id: str,
     conversation_id: Optional[str],
@@ -81,10 +70,6 @@ def get_or_create_conversation(
     create_conversation(conv_id)
     return conv_id
 
-
-# ------------------------------------------------------------
-# Historique + message système (contexte projet)
-# ------------------------------------------------------------
 def get_conversation_history_with_project_context(
     conv_id: str,
     project_id: Optional[str],
@@ -95,15 +80,10 @@ def get_conversation_history_with_project_context(
     if not history or history[0].get("role") != "system":
         return [{"role": "system", "content": system}] + history
 
-    # Si un système existe déjà mais ne correspond pas (changement de projet), on remplace
     if history[0]["content"] != system:
         history = [{"role": "system", "content": system}] + history[1:]
     return history
 
 
-# ------------------------------------------------------------
-# Ajouter un message
-# ------------------------------------------------------------
 def add_message(conv_id: str, role: str, content: str) -> None:
-    # NB: le stockage en RAM ne gère pas de timestamp -> on se contente du rôle + contenu
     _add_message(conv_id, role, content)

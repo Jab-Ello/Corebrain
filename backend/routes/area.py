@@ -1,4 +1,3 @@
-# backend/routes/area.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from database.database import SessionLocal
@@ -10,10 +9,6 @@ import uuid
 
 router = APIRouter(prefix="/areas", tags=["Areas"])
 
-
-###############################################################
-# DB Session
-###############################################################
 def get_db():
     db = SessionLocal()
     try:
@@ -21,10 +16,6 @@ def get_db():
     finally:
         db.close()
 
-
-###############################################################
-# SCHEMAS (Pydantic)
-###############################################################
 class AreaCreate(BaseModel):
     user_id: str
     name: str
@@ -51,11 +42,6 @@ class AreaRead(BaseModel):
         orm_mode = True
 
 
-###############################################################
-# ROUTES CRUD AREAS
-###############################################################
-
-# Créer une zone
 @router.post("/", response_model=AreaRead, status_code=status.HTTP_201_CREATED)
 def create_area(payload: AreaCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == payload.user_id).first()
@@ -78,7 +64,6 @@ def create_area(payload: AreaCreate, db: Session = Depends(get_db)):
     return new_area
 
 
-# Lister toutes les zones d’un utilisateur
 @router.get("/user/{user_id}", response_model=List[AreaRead])
 def get_areas_by_user(user_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -89,7 +74,6 @@ def get_areas_by_user(user_id: str, db: Session = Depends(get_db)):
     return areas
 
 
-# Obtenir une zone spécifique
 @router.get("/{area_id}", response_model=AreaRead)
 def get_area(area_id: str, db: Session = Depends(get_db)):
     area = db.query(Area).filter(Area.id == area_id).first()
@@ -98,7 +82,6 @@ def get_area(area_id: str, db: Session = Depends(get_db)):
     return area
 
 
-# Mettre à jour une zone
 @router.put("/{area_id}", response_model=AreaRead)
 def update_area(area_id: str, payload: AreaUpdate, db: Session = Depends(get_db)):
     area = db.query(Area).filter(Area.id == area_id).first()
@@ -114,7 +97,6 @@ def update_area(area_id: str, payload: AreaUpdate, db: Session = Depends(get_db)
     return area
 
 
-# Supprimer une zone
 @router.delete("/{area_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_area(area_id: str, db: Session = Depends(get_db)):
     area = db.query(Area).filter(Area.id == area_id).first()
@@ -126,11 +108,6 @@ def delete_area(area_id: str, db: Session = Depends(get_db)):
     return {"message": "Zone supprimée"}
 
 
-###############################################################
-# NOTES ASSOCIÉES
-###############################################################
-
-# Lier une note existante à une zone
 @router.post("/{area_id}/notes/{note_id}")
 def attach_note_to_area(area_id: str, note_id: str, db: Session = Depends(get_db)):
     area = db.query(Area).filter(Area.id == area_id).first()
@@ -150,7 +127,6 @@ def attach_note_to_area(area_id: str, note_id: str, db: Session = Depends(get_db
     return {"message": f"Note '{note.title}' liée à la zone '{area.name}'"}
 
 
-# Lister les notes d’une zone
 @router.get("/{area_id}/notes")
 def get_notes_in_area(area_id: str, db: Session = Depends(get_db)):
     area = db.query(Area).filter(Area.id == area_id).first()

@@ -1,4 +1,3 @@
-# backend/routes/user.py
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from passlib.context import CryptContext
@@ -20,9 +19,7 @@ def get_db():
     finally:
         db.close()
 
-# ===========================================================
-# PYDANTIC VALIDATION
-# ===========================================================
+
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
@@ -48,21 +45,13 @@ class UserUpdate(BaseModel):
     avatarUrl: Optional[str] = None
     password: Optional[str] = None
 
-
-# ===========================================================
-# UTILS
-# ===========================================================
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
 
-# ===========================================================
-# USER ROUTES
-# ===========================================================
 
-# CREATE USER
 @router.post("/", response_model=UserRead, status_code=status.HTTP_201_CREATED)
 def create_user(payload: UserCreate, db: Session = Depends(get_db)):
     existing = db.query(User).filter(User.email == payload.email).first()
@@ -82,7 +71,6 @@ def create_user(payload: UserCreate, db: Session = Depends(get_db)):
     return user
 
 
-# LOGIN USER
 @router.post("/login")
 def login_user(credentials: UserLogin, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.email == credentials.email).first()
@@ -91,13 +79,11 @@ def login_user(credentials: UserLogin, db: Session = Depends(get_db)):
     return {"message": "Connexion réussie ✅", "user_id": user.id, "name": user.name}
 
 
-# GET ALL USERS
 @router.get("/", response_model=List[UserRead])
 def get_all_users(db: Session = Depends(get_db)):
     return db.query(User).all()
 
 
-# GET USER BY ID
 @router.get("/{user_id}", response_model=UserRead)
 def get_user(user_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -106,7 +92,6 @@ def get_user(user_id: str, db: Session = Depends(get_db)):
     return user
 
 
-# UPDATE USER
 @router.put("/{user_id}", response_model=UserRead)
 def update_user(user_id: str, payload: UserUpdate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -125,7 +110,6 @@ def update_user(user_id: str, payload: UserUpdate, db: Session = Depends(get_db)
     return user
 
 
-# DELETE USER
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(user_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()

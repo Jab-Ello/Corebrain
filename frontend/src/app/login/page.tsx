@@ -5,10 +5,6 @@ import { setSession } from "@/lib/session";
 import { useState } from "react";
 import Link from "next/link";
 
-// If you're using the App Router, save this as: src/app/login/page.tsx
-// This page keeps the look & feel consistent with your existing gray sidebar theme,
-// using a clean centered auth card. It doesn't depend on shadcn to avoid extra setup.
-
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,9 +21,7 @@ export default function LoginPage() {
   try {
     setLoading(true);
     const res = await api.login({ email, password });
-    // Sauvegarde "session" en localStorage
     setSession({ userId: res.user_id, name: res.name });
-    // Redirige où tu veux
     window.location.href = "/";
   } catch (err: any) {
     setError(err?.message ?? "Impossible de se connecter.");
@@ -39,10 +33,8 @@ export default function LoginPage() {
   return (
     <main className="min-h-[100dvh] bg-gray-50 dark:bg-gray-950 flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        {/* Brand header */}
         <div className="mb-6 text-center">
           <div className="inline-flex items-center justify-center size-12 rounded-2xl bg-gray-800 text-white shadow">
-            {/* Simple logo glyph */}
             <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6">
               <path fill="currentColor" d="M12 2a10 10 0 1 0 10 10A10.011 10.011 0 0 0 12 2Zm1 14.5a1 1 0 0 1-2 0V11a1 1 0 0 1 2 0Zm-1-8a1.25 1.25 0 1 1 1.25-1.25A1.251 1.251 0 0 1 12 8.5Z"/>
             </svg>
@@ -55,7 +47,6 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Card */}
         <div className="rounded-2xl bg-white dark:bg-gray-900 shadow-sm ring-1 ring-gray-200/60 dark:ring-white/10 p-6">
           <form onSubmit={onSubmit} className="space-y-4" noValidate>
             <div>
@@ -126,7 +117,6 @@ export default function LoginPage() {
               {loading ? "Connexion…" : "Se connecter"}
             </button>
 
-            {/* Divider */}
             <div className="relative my-2">
               <div className="absolute inset-0 flex items-center">
                 <span className="w-full border-t border-gray-200 dark:border-white/10" />
@@ -136,7 +126,6 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {/* Social buttons — wire up as needed */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <button
                 type="button"
@@ -161,7 +150,6 @@ export default function LoginPage() {
           </form>
         </div>
 
-        {/* Footer hint to keep parity with your sidebar theme */}
         <p className="mt-6 text-center text-xs text-gray-500 dark:text-gray-400">
           Protégé par chiffrement côté serveur. En te connectant, tu acceptes nos Conditions d'utilisation.
         </p>

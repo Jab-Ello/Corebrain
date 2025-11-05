@@ -60,12 +60,6 @@ class NoteRead(BaseModel):
     class Config:
         orm_mode = True
 
-
-###############################################################
-# ROUTES CRUD NOTES
-###############################################################
-
-# Créer une note
 @router.post("/", response_model=NoteRead, status_code=status.HTTP_201_CREATED)
 def create_note(payload: NoteCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == payload.user_id).first()
@@ -83,7 +77,6 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)):
         updatedAt=datetime.utcnow(),
     )
 
-    # Lier aux projets si fournis
     if payload.project_ids:
         projects = db.query(Project).filter(Project.id.in_(payload.project_ids)).all()
         for p in projects:
@@ -91,7 +84,6 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)):
                 raise HTTPException(status_code=403, detail="Projet n’appartient pas à l’utilisateur")
         new_note.projects = projects
 
-    # Lier aux zones si fournies
     if payload.area_ids:
         areas = db.query(Area).filter(Area.id.in_(payload.area_ids)).all()
         for a in areas:
@@ -99,7 +91,6 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)):
                 raise HTTPException(status_code=403, detail="Zone n’appartient pas à l’utilisateur")
         new_note.areas = areas
 
-    # Lier aux tags
     if payload.tag_names:
         tags = []
         for name in payload.tag_names:
@@ -116,7 +107,6 @@ def create_note(payload: NoteCreate, db: Session = Depends(get_db)):
     return new_note
 
 
-# Lister toutes les notes d’un utilisateur
 @router.get("/user/{user_id}", response_model=List[NoteRead])
 def get_notes_by_user(user_id: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == user_id).first()
@@ -127,7 +117,6 @@ def get_notes_by_user(user_id: str, db: Session = Depends(get_db)):
     return notes
 
 
-# Obtenir une note par ID
 @router.get("/{note_id}", response_model=NoteRead)
 def get_note_by_id(note_id: str, db: Session = Depends(get_db)):
     note = db.query(Note).filter(Note.id == note_id).first()
@@ -136,21 +125,18 @@ def get_note_by_id(note_id: str, db: Session = Depends(get_db)):
     return note
 
 
-# Mettre à jour une note
 @router.put("/{note_id}", response_model=NoteRead)
 def update_note(note_id: str, payload: NoteUpdate, db: Session = Depends(get_db)):
     note = db.query(Note).filter(Note.id == note_id).first()
     if not note:
         raise HTTPException(status_code=404, detail="Note introuvable")
 
-    # Mettre à jour les champs
     for field, value in payload.dict(exclude_unset=True).items():
         if field not in ["project_ids", "area_ids", "tag_names"]:
             setattr(note, field, value)
 
     note.updatedAt = datetime.utcnow()
 
-    # MAJ des liens projets
     if payload.project_ids is not None:
         projects = db.query(Project).filter(Project.id.in_(payload.project_ids)).all()
         for p in projects:
@@ -158,7 +144,6 @@ def update_note(note_id: str, payload: NoteUpdate, db: Session = Depends(get_db)
                 raise HTTPException(status_code=403, detail="Projet n’appartient pas à l’utilisateur")
         note.projects = projects
 
-    # MAJ des liens zones
     if payload.area_ids is not None:
         areas = db.query(Area).filter(Area.id.in_(payload.area_ids)).all()
         for a in areas:
@@ -166,7 +151,6 @@ def update_note(note_id: str, payload: NoteUpdate, db: Session = Depends(get_db)
                 raise HTTPException(status_code=403, detail="Zone n’appartient pas à l’utilisateur")
         note.areas = areas
 
-    # MAJ des tags
     if payload.tag_names is not None:
         tags = []
         for name in payload.tag_names:
@@ -182,7 +166,6 @@ def update_note(note_id: str, payload: NoteUpdate, db: Session = Depends(get_db)
     return note
 
 
-# Supprimer une note
 @router.delete("/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_note(note_id: str, db: Session = Depends(get_db)):
     note = db.query(Note).filter(Note.id == note_id).first()
@@ -193,12 +176,6 @@ def delete_note(note_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Note supprimée"}
 
-
-###############################################################
-# LIAISONS
-###############################################################
-
-# Lier une note à un projet existant
 @router.post("/{note_id}/project/{project_id}")
 def attach_note_to_project(note_id: str, project_id: str, db: Session = Depends(get_db)):
     note = db.query(Note).filter(Note.id == note_id).first()
@@ -215,8 +192,6 @@ def attach_note_to_project(note_id: str, project_id: str, db: Session = Depends(
         db.commit()
     return {"message": f"Note '{note.title}' liée au projet '{project.name}'"}
 
-
-# Lier une note à une zone existante
 @router.post("/{note_id}/area/{area_id}")
 def attach_note_to_area(note_id: str, area_id: str, db: Session = Depends(get_db)):
     note = db.query(Note).filter(Note.id == note_id).first()

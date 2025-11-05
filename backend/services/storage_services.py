@@ -1,5 +1,3 @@
-# Stockage minimal en RAM pour démarrer (faut remplacer par la vraie DB plus tard si jamais)
-
 from typing import Dict, List
 _conversations: Dict[str, List[dict]] = {}
 

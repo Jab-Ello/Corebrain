@@ -63,10 +63,6 @@ class Project(Base):
     def __repr__(self):
         return f"<Project(name={self.name}, user_id={self.user_id}, status={self.status})>"
 
-
-###############################################################
-# AREA MODEL
-###############################################################
 class Area(Base):
     __tablename__ = "areas"
 
@@ -88,9 +84,7 @@ class Area(Base):
         return f"<Area(name={self.name}, user_id={self.user_id})>"
 
 
-###############################################################
 # NOTE MODEL
-###############################################################
 class Note(Base):
     __tablename__ = "notes"
 
@@ -103,26 +97,23 @@ class Note(Base):
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
     updatedAt = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    # 🔹 Chaque note appartient à un utilisateur
+    # 🔹 
     user_id = Column(String, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     user = relationship("User", back_populates="notes")
 
-    # 🔹 Une note peut être liée à plusieurs projets
+    # 🔹 
     projects = relationship("Project", secondary="project_notes", back_populates="notes")
 
-    # 🔹 Une note peut être liée à plusieurs zones
+    # 🔹 
     areas = relationship("Area", secondary="area_notes", back_populates="notes")
 
-    # 🔹 Une note peut être liée à plusieurs tags
+    # 🔹 
     tags = relationship("Tag", secondary="note_tags", back_populates="notes")
 
     def __repr__(self):
         return f"<Note(title={self.title}, user_id={self.user_id}, pinned={self.pinned})>"
 
 
-###############################################################
-# TAG MODEL
-###############################################################
 class Tag(Base):
     __tablename__ = "tags"
 
@@ -130,16 +121,12 @@ class Tag(Base):
     name = Column(String, unique=True, nullable=False)
     createdAt = Column(DateTime, default=datetime.utcnow, nullable=False)
 
-    # 🔹 Relation avec les notes
     notes = relationship("Note", secondary="note_tags", back_populates="tags")
 
     def __repr__(self):
         return f"<Tag(name={self.name})>"
 
 
-###############################################################
-# ASSOCIATION TABLES
-###############################################################
 project_notes = Table(
     "project_notes",
     Base.metadata,

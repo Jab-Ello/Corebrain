@@ -7,21 +7,19 @@ from sqlalchemy import func, text
 import random
 import string
 
-# ============ CONFIG ============
 TARGET_USER_ID = "87ffb41b-3efb-45b8-a411-2f714d074d67"
 
-SEED_PREFIX = "[para]"   # sert à identifier/supprimer sans toucher aux vraies données
-RANDOM_SEED = 1337       # reproductible
+SEED_PREFIX = "[para]"   
+RANDOM_SEED = 1337       
 
 COUNTS = {
-    "projects_work": 8,       # Projets "travail / études"
-    "projects_personal": 6,   # Projets personnels
-    "areas": 10,              # Domaines de responsabilité
-    "notes": 420,             # Volume de notes (réaliste mais pas monstrueux)
-    "tags": 60,               # Vocabulaire
+    "projects_work": 8,       
+    "projects_personal": 6,   
+    "areas": 10,              
+    "notes": 420,             
+    "tags": 60,               
 }
 
-# Répartition plus réaliste
 NOTE_MIX = {
     "meeting": 0.15,
     "todo": 0.25,
@@ -30,13 +28,12 @@ NOTE_MIX = {
     "learning": 0.16,
     "resource": 0.18,
     "retro": 0.07,
-    "daily_log": 0.05,    # journaux courts du jour
+    "daily_log": 0.05,    
 }
 
 BATCH_SIZE = 200
 DAYS_HISTORY = 360
 
-# ============ HELPERS ============
 def gen_id() -> str:
     return str(uuid4())
 
@@ -44,10 +41,8 @@ def now_utc():
     return datetime.now(timezone.utc)
 
 def random_past_datetime(days_back=DAYS_HISTORY):
-    # Biais vers jours ouvrés (plus de notes en semaine)
     d = random.randint(0, days_back)
     base = now_utc() - timedelta(days=d)
-    # heure réaliste entre 08h et 21h, pics 10h/14h/19h
     hour_choices = [8,9,10,10,11,14,14,15,16,19,19,20,21]
     h = random.choice(hour_choices)
     m = random.randint(0, 59)
@@ -80,7 +75,6 @@ def clear_existing_seed(db, user_id: str, prefix: str):
     """Supprime toutes les données SEED (avec le prefix) pour un user, sans toucher le reste."""
     like = f"{prefix} %"
 
-    # liaisons d'abord
     db.execute(text("""
         DELETE FROM note_tags
         WHERE note_id IN (
@@ -101,7 +95,6 @@ def clear_existing_seed(db, user_id: str, prefix: str):
            OR area_id IN (SELECT id FROM areas WHERE user_id = :uid AND name LIKE :prefx);
     """), {"uid": user_id, "prefx": like})
 
-    # entités de cet utilisateur
     db.execute(text("DELETE FROM notes    WHERE user_id = :uid AND title LIKE :prefx;"),
                {"uid": user_id, "prefx": like})
     db.execute(text("DELETE FROM projects WHERE user_id = :uid AND name  LIKE :prefx;"),
@@ -109,7 +102,6 @@ def clear_existing_seed(db, user_id: str, prefix: str):
     db.execute(text("DELETE FROM areas    WHERE user_id = :uid AND name  LIKE :prefx;"),
                {"uid": user_id, "prefx": like})
 
-    # tags seed non utilisés
     db.execute(text("""
         DELETE FROM tags
         WHERE name LIKE :prefx
@@ -118,7 +110,6 @@ def clear_existing_seed(db, user_id: str, prefix: str):
 
     db.commit()
 
-# ============ VOCAB & CATALOGS ============
 WORK_PROJECT_NAMES = [
     "Refonte du site vitrine",
     "Client mobile — MVP",
@@ -159,7 +150,6 @@ AREA_NAMES = [
     "Routines & Systèmes",
 ]
 
-# tags thématiques (on préfixe pour pouvoir nettoyer proprement sans polluer de vrais tags)
 BASE_TAGS = [
     "meeting", "todo", "review", "weekly", "monthly", "learning", "resource", "retro",
     "pro", "perso", "priorité-haute", "priorité-moyenne", "priorité-basse",
@@ -170,7 +160,6 @@ BASE_TAGS = [
 
 PEOPLE = ["Alice", "Bruno", "Camille", "David", "Emma", "Farid", "Gaëlle", "Hugo", "Inès", "Jonas", "Lina", "Maya"]
 
-# ============ GENERATORS (contenus réalistes) ============
 def generate_tags(db):
     tags = []
     base = set(BASE_TAGS)
@@ -188,7 +177,6 @@ def generate_tags(db):
 
 def ensure_projects(db, user: User):
     projects = []
-    # Travail/Études
     for base_name in WORK_PROJECT_NAMES + STUDY_PROJECT_NAMES:
         name = f"{SEED_PREFIX} {base_name}"
         existing = db.query(Project).filter(Project.user_id == user.id, Project.name == name).first()
@@ -212,7 +200,6 @@ def ensure_projects(db, user: User):
         )
         db.add(p); projects.append(p)
 
-    # Perso
     for base_name in PERSONAL_PROJECT_NAMES[:COUNTS["projects_personal"]]:
         name = f"{SEED_PREFIX} {base_name}"
         existing = db.query(Project).filter(Project.user_id == user.id, Project.name == name).first()
@@ -464,7 +451,6 @@ def daily_log_content():
 def make_note(db, user, title, content, created, updated, tags, projects=None, areas=None, pinned=False):
     existing = db.query(Note).filter(Note.user_id == user.id, Note.title == title).first()
     if existing:
-        # enrichit si la note existe déjà
         for t in tags:
             if t and t not in existing.tags:
                 existing.tags.append(t)
@@ -499,7 +485,6 @@ def make_note(db, user, title, content, created, updated, tags, projects=None, a
     db.add(n)
     return n
 
-# ============ MAIN ============
 def main():
     print("[para-seed] Engine:", getattr(engine, "url", "unknown"))
     random.seed(RANDOM_SEED)
@@ -507,17 +492,13 @@ def main():
     try:
         user = ensure_user(db, TARGET_USER_ID)
 
-        # Nettoie les anciens seeds pour cet utilisateur (évite doublons/conflits)
         clear_existing_seed(db, user.id, SEED_PREFIX)
 
-        # Tags
         tags = generate_tags(db)
 
-        # Projects & Areas
         projects = ensure_projects(db, user)
         areas = ensure_areas(db, user)
 
-        # Tags utilitaires par nom
         tag_map = {t.name: t for t in tags}
         t_meeting   = tag_map.get(f"{SEED_PREFIX} meeting")   or get_or_create_tag(db, f"{SEED_PREFIX} meeting")
         t_todo      = tag_map.get(f"{SEED_PREFIX} todo")      or get_or_create_tag(db, f"{SEED_PREFIX} todo")
@@ -530,7 +511,6 @@ def main():
         t_pro       = tag_map.get(f"{SEED_PREFIX} pro")       or get_or_create_tag(db, f"{SEED_PREFIX} pro")
         t_perso     = tag_map.get(f"{SEED_PREFIX} perso")     or get_or_create_tag(db, f"{SEED_PREFIX} perso")
 
-        # Notes épinglées (rituels PARA)
         pinned_titles = [
             f"{SEED_PREFIX} Weekly Review — Modèle",
             f"{SEED_PREFIX} Monthly Review — Modèle",
@@ -572,7 +552,6 @@ def main():
                 pinned=True
             )
 
-        # Génération massive
         total_notes = 0
         types = list(NOTE_MIX.keys())
         probs = list(NOTE_MIX.values())
@@ -585,7 +564,6 @@ def main():
             proj = random.choice(projects) if random.random() < 0.7 else None
             ars = pick(areas, k=random.randint(0,2))
 
-            # base de tags réalistes
             auto_tags = []
             if proj:
                 auto_tags.append(t_pro)
@@ -631,7 +609,6 @@ def main():
                 content = "Note"
                 tags_note = auto_tags
 
-            # Ajout de 0–2 tags techniques aléatoires pour varier
             extra_tag_names = [
                 f"{SEED_PREFIX} python", f"{SEED_PREFIX} fastapi", f"{SEED_PREFIX} nextjs",
                 f"{SEED_PREFIX} sqlite", f"{SEED_PREFIX} ml", f"{SEED_PREFIX} nlp",
@@ -642,7 +619,6 @@ def main():
                 nm = random.choice(extra_tag_names)
                 tags_note.append(get_or_create_tag(db, nm))
 
-            # Nettoie None & doublons
             tags_note = [t for t in set(tags_note) if t is not None]
             ps = [proj] if proj else []
 
@@ -655,7 +631,6 @@ def main():
 
         db.commit()
 
-        # Résumé
         n_projects = db.query(func.count(Project.id)).filter(Project.user_id == user.id).scalar()
         n_areas    = db.query(func.count(Area.id)).filter(Area.user_id == user.id).scalar()
         n_notes    = db.query(func.count(Note.id)).filter(Note.user_id == user.id).scalar()
