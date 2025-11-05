@@ -1,5 +1,5 @@
 # backend/routes/project.py
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Request
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Body, Request
 from sqlalchemy.orm import Session
 from database.database import SessionLocal
 from database.models import Project, User, Note
@@ -63,9 +63,18 @@ class ProjectUpdate(BaseModel):
     endDate: Optional[datetime] = None
 
 
+# --- Nouveau : payload optionnel depuis le bouton (pour le futur) ---
+class AgentTrigger(BaseModel):
+    action: Optional[str] = None        # ex: "analyze", "summarize"...
+    max_tokens: Optional[int] = None    # tu peux l’ignorer côté n8n si non géré
+    dry_run: Optional[bool] = None      # idem
+
+
 ###############################################################
 # ROUTES PROJETS
 ###############################################################
+
+# Créer un projet (❌ plus de notify ici)
 @router.post("/", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
 def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == payload.user_id).first()
@@ -83,12 +92,9 @@ def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
         plannedEndDate=payload.plannedEndDate,
         status="ACTIVE",
     )
-
     db.add(new_project)
     db.commit()
     db.refresh(new_project)
-
-    notify_n8n(event="project_created", project_id=new_project.id)
     return new_project
 
 
@@ -98,10 +104,16 @@ def get_projects_by_user(user_id: str, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="Utilisateur introuvable")
 
-    projects = db.query(Project).filter(Project.user_id == user_id).order_by(Project.createdAt.desc()).all()
+    projects = (
+        db.query(Project)
+        .filter(Project.user_id == user_id)
+        .order_by(Project.createdAt.desc())
+        .all()
+    )
     return projects
 
 
+# Obtenir un projet
 @router.get("/{project_id}", response_model=ProjectRead)
 def get_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -110,6 +122,14 @@ def get_project(project_id: str, db: Session = Depends(get_db)):
     return project
 
 
+@router.post("/_test-n8n")
+def test_n8n(background: BackgroundTasks):
+    print("[TEST] /_test-n8n hit")
+    notify_n8n(event="ping", project_id="demo")
+    return {"ok": True}
+
+
+# Mettre à jour un projet (❌ plus de notify ici)
 @router.put("/{project_id}", response_model=ProjectRead)
 def update_project(project_id: str, payload: ProjectUpdate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -122,8 +142,6 @@ def update_project(project_id: str, payload: ProjectUpdate, db: Session = Depend
     project.updatedAt = datetime.utcnow()
     db.commit()
     db.refresh(project)
-
-    notify_n8n(event="project_updated", project_id=project.id)
     return project
 
 
@@ -132,7 +150,6 @@ def delete_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Projet introuvable")
-
     db.delete(project)
     db.commit()
     return {"message": "Projet supprimé"}
@@ -141,6 +158,8 @@ def delete_project(project_id: str, db: Session = Depends(get_db)):
 ###############################################################
 # NOTES LIÉES À UN PROJET
 ###############################################################
+
+# Lier une note à un projet (❌ plus de notify ici)
 @router.post("/{project_id}/notes/{note_id}")
 def attach_note_to_project(project_id: str, note_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -156,11 +175,10 @@ def attach_note_to_project(project_id: str, note_id: str, db: Session = Depends(
     if note not in project.notes:
         project.notes.append(note)
         db.commit()
-    
-    notify_n8n(event="note_attached_to_project", project_id=project.id)
     return {"message": f"Note '{note.title}' liée au projet '{project.name}'"}
 
 
+# Récupérer les notes du projet
 @router.get("/{project_id}/notes")
 def get_project_notes(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -179,10 +197,15 @@ def get_project_notes(project_id: str, db: Session = Depends(get_db)):
 
 
 ###############################################################
-# DÉCLENCHEMENT DU WORKFLOW
+# 🔔 Nouveau : bouton → déclencheur N8N
 ###############################################################
-@router.post("/{project_id}/trigger", status_code=status.HTTP_202_ACCEPTED)
-def trigger_project_workflow(project_id: str, background: BackgroundTasks, db: Session = Depends(get_db)):
+@router.post("/{project_id}/trigger", status_code=202)
+def trigger_project_workflow(
+    project_id: str,
+    trigger: AgentTrigger = Body(default=AgentTrigger()),
+    background: BackgroundTasks = None,
+    db: Session = Depends(get_db),
+):
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
         raise HTTPException(status_code=404, detail="Projet introuvable")

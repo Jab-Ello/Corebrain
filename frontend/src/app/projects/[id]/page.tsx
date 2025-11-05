@@ -1,4 +1,4 @@
- // ⬅️ agent IA (adapte le chemin si besoin)
+// ⬅️ agent IA (adapte le chemin si besoin)
 "use client";
 export const dynamic = "force-dynamic";
 
@@ -7,7 +7,7 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { api, type Project } from "../../../lib/api";
 import { getSession } from "../../../lib/session";
-import AIAgent from "../../../components/dashboard/AiAgent"; 
+import AIAgent from "../../../components/dashboard/AiAgent";
 
 export default function ProjectDetailsPage() {
   const router = useRouter();
@@ -20,6 +20,10 @@ export default function ProjectDetailsPage() {
   const [status, setStatus] = useState<string>("active");
   const [savingStatus, setSavingStatus] = useState(false);
   const [actionErr, setActionErr] = useState<string | null>(null);
+
+  // 🔔 États pour le déclenchement N8N
+  const [triggering, setTriggering] = useState(false);
+  const [triggerMsg, setTriggerMsg] = useState<string | null>(null);
 
   // ------------------------------------------------------------
   // 🔹 Charger le projet
@@ -70,7 +74,8 @@ export default function ProjectDetailsPage() {
   // ------------------------------------------------------------
   const toggleArchive = async () => {
     if (!project) return;
-    const target = (project.status || "").toLowerCase() === "archived" ? "active" : "archived";
+    const target =
+      (project.status || "").toLowerCase() === "archived" ? "active" : "archived";
     try {
       setSavingStatus(true);
       setActionErr(null);
@@ -81,6 +86,27 @@ export default function ProjectDetailsPage() {
       setActionErr(e?.message ?? "Impossible de changer le statut.");
     } finally {
       setSavingStatus(false);
+    }
+  };
+
+  // ------------------------------------------------------------
+  // 🔔 Déclencher le workflow N8N (bouton)
+  // ------------------------------------------------------------
+  const triggerN8N = async () => {
+    if (!project) return;
+    try {
+      setTriggering(true);
+      setTriggerMsg(null);
+      await api.triggerProjectAgent(project.id, {
+        action: "analyze",   // libre : "analyze" | "summarize" | "plan" | "triage"
+        max_tokens: 1200,    // limite démo si gérée côté n8n
+        dry_run: false,
+      });
+      setTriggerMsg("Analyse lancée : N8N a bien été déclenché.");
+    } catch (e: any) {
+      setTriggerMsg(e?.message ?? "Échec du déclenchement N8N.");
+    } finally {
+      setTriggering(false);
     }
   };
 
@@ -130,8 +156,12 @@ export default function ProjectDetailsPage() {
             className="rounded-lg bg-white/90 text-black px-3 py-2 text-sm hover:bg-white disabled:opacity-60"
           >
             {savingStatus
-              ? isArchived ? "Reactivating…" : "Archiving…"
-              : isArchived ? "Reactivate" : "Archive project"}
+              ? isArchived
+                ? "Reactivating…"
+                : "Archiving…"
+              : isArchived
+              ? "Reactivate"
+              : "Archive project"}
           </button>
 
           <Link
@@ -177,7 +207,9 @@ export default function ProjectDetailsPage() {
               </select>
               <button
                 onClick={saveStatus}
-                disabled={savingStatus || status === (project.status ?? "active")}
+                disabled={
+                  savingStatus || status === (project.status ?? "active")
+                }
                 className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs hover:bg-white/10 disabled:opacity-60"
               >
                 {savingStatus ? "Saving…" : "Save status"}
@@ -190,9 +222,7 @@ export default function ProjectDetailsPage() {
           </span>
         </div>
 
-        {actionErr && (
-          <p className="mb-4 text-xs text-red-300">{actionErr}</p>
-        )}
+        {actionErr && <p className="mb-4 text-xs text-red-300">{actionErr}</p>}
 
         {/* Description */}
         <section className="mb-6">
@@ -242,9 +272,32 @@ export default function ProjectDetailsPage() {
         </section>
       </div>
 
+      {/* 🔘 Bouton “Trigger N8N” au-dessus de l’agent */}
+      <div className="rounded-2xl bg-white/5 border border-white/10 p-4 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h3 className="text-sm uppercase tracking-wider text-white/60">
+              Workflow d’analyse
+            </h3>
+            <p className="text-sm text-white/80">
+              Lance l’orchestrateur N8N pour analyser ce projet et ses notes liées.
+            </p>
+          </div>
+          <button
+            onClick={triggerN8N}
+            disabled={triggering}
+            className="w-full sm:w-auto rounded-lg bg-white/90 text-black px-4 py-2 text-sm hover:bg-white disabled:opacity-60"
+          >
+            {triggering ? "Lancement…" : "Déclencher l’analyse N8N"}
+          </button>
+        </div>
+        {triggerMsg && (
+          <p className="mt-3 text-xs text-white/70">{triggerMsg}</p>
+        )}
+      </div>
+
       {/* 🔹 Agent IA contextuel au projet */}
-      <AIAgent projectId={project.id} /> 
+      <AIAgent projectId={project.id} />
     </main>
   );
 }
-

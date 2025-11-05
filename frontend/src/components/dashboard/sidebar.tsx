@@ -89,7 +89,7 @@ export default function Sidebar() {
       <aside aria-label="Primary" className="w-[260px] min-w-[260px] bg-[var(--bg)] border-r border-[var(--border)] p-6 hidden lg:flex lg:flex-col">
         <div className="flex items-center gap-3 text-xl font-black tracking-tight mb-6">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10">🧠</span>
-          <span>SecondBrain</span>
+          <span>Corebrain</span>
         </div>
 
         <div className="relative mb-4">
@@ -132,11 +132,11 @@ export default function Sidebar() {
     <aside aria-label="Primary" className="w-[260px] min-w-[260px] bg-[var(--bg)] border-r border-[var(--border)] p-6 hidden lg:flex lg:flex-col">
       <div className="flex items-center gap-3 text-xl font-black tracking-tight mb-6">
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10">🧠</span>
-        <span>SecondBrain</span>
+        <span>Corebrain</span>
       </div>
 
       <div className="relative mb-4">
-        <label htmlFor="search" className="sr-only">Search your SecondBrain</label>
+        <label htmlFor="search" className="sr-only">Search your Corebrain</label>
         <input
           id="search"
           placeholder="Search your SecondBrain"

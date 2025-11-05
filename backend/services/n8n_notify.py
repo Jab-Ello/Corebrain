@@ -1,6 +1,6 @@
 import requests
 
-N8N_WEBHOOK_URL = "https://jabran-ellaoui.app.n8n.cloud/webhook/project-orchestrator"
+N8N_WEBHOOK_URL = "https://massinissa-benramdame.app.n8n.cloud/webhook/project-orchestrator"
 
 def notify_n8n(event: str, project_id: str):
     payload = {"event": event, "project_id": project_id}
