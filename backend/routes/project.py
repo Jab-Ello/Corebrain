@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Body
+# backend/routes/project.py
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks, Body, Request
 from sqlalchemy.orm import Session
 from database.database import SessionLocal
 from database.models import Project, User, Note
@@ -10,6 +11,10 @@ import uuid
 
 router = APIRouter(prefix="/projects", tags=["Projects"])
 
+
+###############################################################
+# DB Session
+###############################################################
 def get_db():
     db = SessionLocal()
     try:
@@ -17,6 +22,10 @@ def get_db():
     finally:
         db.close()
 
+
+###############################################################
+# SCHEMAS (Pydantic)
+###############################################################
 class ProjectCreate(BaseModel):
     user_id: str
     name: str
@@ -53,11 +62,19 @@ class ProjectUpdate(BaseModel):
     plannedEndDate: Optional[datetime] = None
     endDate: Optional[datetime] = None
 
-class AgentTrigger(BaseModel):
-    action: Optional[str] = None        
-    max_tokens: Optional[int] = None   
-    dry_run: Optional[bool] = None     
 
+# --- Nouveau : payload optionnel depuis le bouton (pour le futur) ---
+class AgentTrigger(BaseModel):
+    action: Optional[str] = None        # ex: "analyze", "summarize"...
+    max_tokens: Optional[int] = None    # tu peux l’ignorer côté n8n si non géré
+    dry_run: Optional[bool] = None      # idem
+
+
+###############################################################
+# ROUTES PROJETS
+###############################################################
+
+# Créer un projet (❌ plus de notify ici)
 @router.post("/", response_model=ProjectRead, status_code=status.HTTP_201_CREATED)
 def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.id == payload.user_id).first()
@@ -96,6 +113,7 @@ def get_projects_by_user(user_id: str, db: Session = Depends(get_db)):
     return projects
 
 
+# Obtenir un projet
 @router.get("/{project_id}", response_model=ProjectRead)
 def get_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -110,6 +128,8 @@ def test_n8n(background: BackgroundTasks):
     notify_n8n(event="ping", project_id="demo")
     return {"ok": True}
 
+
+# Mettre à jour un projet (❌ plus de notify ici)
 @router.put("/{project_id}", response_model=ProjectRead)
 def update_project(project_id: str, payload: ProjectUpdate, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -124,6 +144,7 @@ def update_project(project_id: str, payload: ProjectUpdate, db: Session = Depend
     db.refresh(project)
     return project
 
+
 @router.delete("/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_project(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -133,6 +154,12 @@ def delete_project(project_id: str, db: Session = Depends(get_db)):
     db.commit()
     return {"message": "Projet supprimé"}
 
+
+###############################################################
+# NOTES LIÉES À UN PROJET
+###############################################################
+
+# Lier une note à un projet (❌ plus de notify ici)
 @router.post("/{project_id}/notes/{note_id}")
 def attach_note_to_project(project_id: str, note_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -150,6 +177,8 @@ def attach_note_to_project(project_id: str, note_id: str, db: Session = Depends(
         db.commit()
     return {"message": f"Note '{note.title}' liée au projet '{project.name}'"}
 
+
+# Récupérer les notes du projet
 @router.get("/{project_id}/notes")
 def get_project_notes(project_id: str, db: Session = Depends(get_db)):
     project = db.query(Project).filter(Project.id == project_id).first()
@@ -166,6 +195,10 @@ def get_project_notes(project_id: str, db: Session = Depends(get_db)):
         for note in project.notes
     ]
 
+
+###############################################################
+# 🔔 Nouveau : bouton → déclencheur N8N
+###############################################################
 @router.post("/{project_id}/trigger", status_code=202)
 def trigger_project_workflow(
     project_id: str,
@@ -177,9 +210,40 @@ def trigger_project_workflow(
     if not project:
         raise HTTPException(status_code=404, detail="Projet introuvable")
 
-    if background:
-        background.add_task(notify_n8n, event="project_button_pressed", project_id=project_id)
-    else:
-        notify_n8n(event="project_button_pressed", project_id=project_id)
-
+    background.add_task(notify_n8n, event="project_button_pressed", project_id=project_id)
     return {"ok": True, "queued": True, "project_id": project_id}
+
+
+###############################################################
+# RÉCEPTION DE LA TODO ENVOYÉE PAR N8N
+###############################################################
+last_agent_todo = None
+
+@router.post("/{project_id}/agent/todos/latest", status_code=status.HTTP_200_OK)
+async def receive_agent_todo(project_id: str, request: Request, db: Session = Depends(get_db)):
+    """
+    🔹 Reçoit depuis N8N la To-Do générée par l'agent Analyste.
+    """
+    global last_agent_todo
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projet introuvable")
+
+    payload = await request.json()
+    last_agent_todo = {
+        "project_id": project_id,
+        "todos": payload.get("todos", payload),  # accepte {"todos": [...]} ou le JSON brut
+        "receivedAt": datetime.utcnow().isoformat()
+    }
+    print(f"📥 To-Do reçue pour le projet {project_id} :", last_agent_todo)
+    return {"ok": True, "stored": True, "project_id": project_id}
+
+
+@router.get("/agent/todos/latest", status_code=status.HTTP_200_OK)
+def get_last_agent_todo():
+    """
+    🔹 Permet de consulter la dernière To-Do reçue (tous projets confondus).
+    """
+    if not last_agent_todo:
+        raise HTTPException(status_code=404, detail="Aucune To-Do reçue de N8N pour le moment.")
+    return last_agent_todo
