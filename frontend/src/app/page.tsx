@@ -13,14 +13,12 @@ export default function Page() {
     <div className="space-y-6">
       <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
         <DashboardOverview />
-        <Progress />
+        <NotesTags />
       </div>
 
       {/* ✅ Enveloppe la section contenant useSearchParams() dans un Suspense */}
       <Suspense fallback={<div>Chargement des notes...</div>}>
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-6">
-          <NewEntries />
-          <NotesTags />
         </div>
       </Suspense>
 

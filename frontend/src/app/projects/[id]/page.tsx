@@ -7,10 +7,11 @@ import Link from "next/link";
 import { api, type Project } from "../../../lib/api";
 import { getSession } from "../../../lib/session";
 import AIAgent from "../../../components/dashboard/AiAgent";
+import TodoListCard from "../../../components/dashboard/ToDoListCard";
 
 export default function ProjectDetailsPage() {
   const router = useRouter();
-  const { id: projectId } = useParams<{ id: string }>(); // ✅ ID est un string UUID
+  const { id: projectId } = useParams<{ id: string }>(); 
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
@@ -268,6 +269,7 @@ export default function ProjectDetailsPage() {
           <p className="mt-3 text-xs text-white/70">{triggerMsg}</p>
         )}
       </div>
+      <TodoListCard projectId={project.id} />
 
       <AIAgent projectId={project.id} />
     </main>

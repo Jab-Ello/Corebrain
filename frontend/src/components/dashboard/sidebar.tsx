@@ -5,8 +5,37 @@ import { useEffect, useMemo, useState } from "react";
 import { getSession, type Session } from "@/lib/session";
 import { api, type Project, type User } from "@/lib/api";
 import { usePathname } from "next/navigation";
+import { JSX } from "react";
 
-function iconFor(label: string) { /* inchangé */ }
+// 🧩 Nouveaux imports Lucide (shadcn/ui déjà les supporte)
+import {
+  LayoutDashboard,
+  FolderKanban,
+  Grid3X3,
+  BookOpen,
+  Archive as ArchiveIcon,
+  Folder,
+} from "lucide-react";
+
+function safeDisplayName(u?: User | null, s?: Session | null): string {
+  const cand = [
+    u?.name,
+    s?.name,
+    u?.email ? u.email.split("@")[0] : undefined,
+  ].find((v) => v && v.trim() && v.trim().toLowerCase() !== "string");
+  return cand ?? "Guest";
+}
+
+function iconFor(label: string) {
+  const map: Record<string, JSX.Element> = {
+    Dashboard: <LayoutDashboard className="h-5 w-5 shrink-0" />,
+    Projects:  <FolderKanban     className="h-5 w-5 shrink-0" />,
+    Areas:     <Grid3X3          className="h-5 w-5 shrink-0" />,
+    Resources: <BookOpen         className="h-5 w-5 shrink-0" />,
+    Archives:  <ArchiveIcon      className="h-5 w-5 shrink-0" />,
+  };
+  return map[label] ?? <LayoutDashboard className="h-5 w-5 shrink-0" />;
+}
 
 function Avatar({ src }: { src?: string | null }) {
   const [broken, setBroken] = useState(false);
@@ -25,30 +54,24 @@ function Avatar({ src }: { src?: string | null }) {
 export default function Sidebar() {
   const pathname = usePathname();
 
-  // NEW: éviter lecture de session pendant SSR
   const [mounted, setMounted] = useState(false);
   const [session, setSessionState] = useState<Session | null>(null);
-
   const [projects, setProjects] = useState<Project[] | null>(null);
   const [projError, setProjError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<User | null>(null);
 
-  // 1) Marquer "monté" côté client
   useEffect(() => { setMounted(true); }, []);
-
-  // 2) Lire la session côté client uniquement
   useEffect(() => {
     if (!mounted) return;
     setSessionState(getSession());
   }, [mounted]);
 
-  // 3) Charger les données quand on a une session
   useEffect(() => {
     (async () => {
       try {
         if (!mounted) return;
-        if (!session) { // pas connecté
+        if (!session) {
           setProjects(null);
           setUser(null);
           setLoading(false);
@@ -78,63 +101,39 @@ export default function Sidebar() {
     [projects]
   );
 
-  const displayName = user?.name ?? session?.name ?? "Guest";
+  const displayName = safeDisplayName(user, session);
   const displayEmail = user?.email ?? (session ? "—" : "username@example.com");
   const avatarSrc = user?.avatarUrl;
 
-  // --- 🔒 Hydration-safe rendering:
-  // Tant que !mounted, rendre un squelette STABLE (identique SSR/Client initial)
   if (!mounted) {
     return (
-      <aside aria-label="Primary" className="w-[260px] min-w-[260px] bg-[var(--bg)] border-r border-[var(--border)] p-6 hidden lg:flex lg:flex-col">
+      <aside className="w-[260px] min-w-[260px] bg-[var(--bg)] border-r border-[var(--border)] p-6 hidden lg:flex lg:flex-col">
+        {/* Skeleton */}
         <div className="flex items-center gap-3 text-xl font-black tracking-tight mb-6">
           <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10">🧠</span>
           <span>Corebrain</span>
         </div>
-
         <div className="relative mb-4">
           <div className="w-full h-9 rounded-xl bg-white/5 border border-[var(--border)] animate-pulse" />
         </div>
-
         <nav className="space-y-1 text-sm">
           {["/", "/projects", "/areas", "/resources", "/archives"].map((href) => (
             <div key={href} className="h-8 rounded-lg bg-white/5 border border-[var(--border)] animate-pulse" />
           ))}
         </nav>
-
-        <div className="mt-8">
-          <div className="h-4 w-32 bg-white/5 border border-white/10 rounded mb-3 animate-pulse" />
-          <ul className="space-y-2 text-sm">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <li key={i} className="flex items-start gap-2">
-                <span className="mt-0.5">📁</span>
-                <div className="h-4 w-40 bg-white/10 rounded animate-pulse" />
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div className="mt-auto pt-6 space-y-6">
-          <div className="flex items-center gap-3">
-            <div className="h-9 w-9 rounded-full bg-white/10" />
-            <div className="leading-tight">
-              <div className="h-4 w-24 bg-white/10 rounded mb-1" />
-              <div className="h-3 w-28 bg-white/10 rounded" />
-            </div>
-          </div>
-        </div>
       </aside>
     );
   }
 
-  // --- rendu normal (client)
   return (
     <aside aria-label="Primary" className="w-[260px] min-w-[260px] bg-[var(--bg)] border-r border-[var(--border)] p-6 hidden lg:flex lg:flex-col">
+      {/* --- Header --- */}
       <div className="flex items-center gap-3 text-xl font-black tracking-tight mb-6">
         <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/10">🧠</span>
         <span>Corebrain</span>
       </div>
 
+      {/* --- Search --- */}
       <div className="relative mb-4">
         <label htmlFor="search" className="sr-only">Search your Corebrain</label>
         <input
@@ -144,6 +143,7 @@ export default function Sidebar() {
         />
       </div>
 
+      {/* --- Navigation --- */}
       <nav className="space-y-1 text-sm">
         {[
           { href: "/", label: "Dashboard" },
@@ -159,17 +159,18 @@ export default function Sidebar() {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={[
-                "flex items-center gap-3 rounded-lg px-3 py-2",
-                active ? "bg-white/10 text-white" : "text-white/80 hover:bg-white/10 hover:text-white"
+                "flex items-center gap-3 rounded-lg px-3 py-2 transition-colors",
+                active ? "bg-white/10 text-white" : "text-white/80 hover:bg-white/10 hover:text-white",
               ].join(" ")}
             >
-              <span className="inline-block w-5">{iconFor(item.label)}</span>
+              <span className="inline-flex w-5 justify-center">{iconFor(item.label)}</span>
               {item.label}
             </Link>
           );
         })}
       </nav>
 
+      {/* --- Current Projects --- */}
       <div className="mt-8">
         <h4 className="text-white/60 text-xs uppercase tracking-wider mb-3">Current projects</h4>
 
@@ -182,8 +183,8 @@ export default function Sidebar() {
         {session && loading && (
           <ul className="space-y-2 text-sm animate-pulse">
             {Array.from({ length: 4 }).map((_, i) => (
-              <li key={i} className="flex items-start gap-2">
-                <span className="mt-0.5">📁</span>
+              <li key={i} className="flex items-center gap-2">
+                <Folder className="h-4 w-4 text-white/30" />
                 <div className="h-4 w-40 bg-white/10 rounded" />
               </li>
             ))}
@@ -201,9 +202,13 @@ export default function Sidebar() {
         {session && !loading && !projError && displayProjects.length > 0 && (
           <ul className="space-y-2 text-sm">
             {displayProjects.map((p) => (
-              <li key={p.id} className="flex items-start gap-2">
-                <span className="mt-0.5">📁</span>
-                <Link className="hover:underline decoration-white/30 leading-snug" href={`/projects/${p.id}`}>
+              <li key={p.id} className="flex items-center gap-2">
+                {/* ✅ Icône de projet ici */}
+                <Folder className="h-4 w-4 text-white/70 shrink-0" aria-hidden="true" />
+                <Link
+                  className="hover:underline decoration-white/30 leading-snug truncate"
+                  href={`/projects/${p.id}`}
+                >
                   {p.name}
                 </Link>
               </li>
@@ -212,6 +217,7 @@ export default function Sidebar() {
         )}
       </div>
 
+      {/* --- Footer --- */}
       <div className="mt-auto pt-6 space-y-6">
         <div className="flex items-center gap-3">
           <Avatar src={avatarSrc} />

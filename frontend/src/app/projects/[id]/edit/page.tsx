@@ -1,15 +1,16 @@
 "use client";
-
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { api, type Project, type ProjectCreateBody } from "../../../../lib/api";
-import { getSession } from "../../../../lib/session";
-import ProjectForm from "../../ProjectForm";
 import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { api, type Project, type ProjectCreateBody } from "@/lib/api";
+import { getSession } from "@/lib/session";
+import ProjectForm from "@/app/projects/ProjectForm";
+import PlanningJsonPanel from "@/components/dashboard/PlanningJsonPanel";
 
 export default function EditProjectPage() {
   const router = useRouter();
   const { id } = useParams<{ id: string }>();
+
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -21,7 +22,6 @@ export default function EditProjectPage() {
       router.replace("/login");
       return;
     }
-
     (async () => {
       try {
         const p = await api.getProject(id);
@@ -54,26 +54,18 @@ export default function EditProjectPage() {
   if (error || !project)
     return (
       <main className="p-6">
-        <Link
-          href="/projects"
-          className="text-sm underline decoration-white/30 hover:decoration-white/80"
-        >
+        <Link href="/projects" className="text-sm underline decoration-white/30 hover:decoration-white/80">
           ← Retour aux projets
         </Link>
-        <div className="mt-3 text-sm text-red-300">
-          {error ?? "Projet introuvable."}
-        </div>
+        <div className="mt-3 text-sm text-red-300">{error ?? "Projet introuvable."}</div>
       </main>
     );
 
   return (
-    <main className="p-6">
+    <main className="p-6 space-y-8">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold">Edit Project</h1>
-        <Link
-          href={`/projects/${project.id}`}
-          className="text-sm underline decoration-white/30 hover:decoration-white/80"
-        >
+        <Link href={`/projects/${project.id}`} className="text-sm underline decoration-white/30 hover:decoration-white/80">
           Cancel
         </Link>
       </div>
@@ -88,7 +80,6 @@ export default function EditProjectPage() {
         onSubmit={handleUpdate}
         userId={project.user_id}
         submitting={submitting}
-        // ✅ valeurs initiales
         initialValues={{
           name: project.name,
           description: project.description ?? "",
@@ -98,6 +89,21 @@ export default function EditProjectPage() {
           plannedEndDate: project.plannedEndDate ?? "",
         }}
       />
+
+      <div style={{border:'1px dashed #666', padding:6, margin:'8px 0', color:'#aaa'}}>
+  DEBUG: edit page mounted
+</div>
+
+      <section className="mt-6">
+        <h2 className="px-1 pb-2 text-sm font-medium text-white/60">PLANNING (N8N)</h2>
+        <PlanningJsonPanel
+          projectId={project.id}
+          className="mt-2"
+          title="Planning (JSON brut)"
+          autoFetch
+          collapsible
+        />
+      </section>
     </main>
   );
 }

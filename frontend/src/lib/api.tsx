@@ -129,11 +129,21 @@ export type AreaNote = {
   note_id: string;
   title: string;
   content: string;
-  createdAt: string; // ISO
+  createdAt: string; 
 };
 
+
+export type ProjectTodo = {
+  id: string;
+  title: string;
+  done: boolean;
+  dueDate?: string | null;
+  priority?: "low" | "medium" | "high";
+  noteId?: string | null;
+};
+
+
 export const api = {
-  // Users / Auth
   login: (body: { email: string; password: string }) =>
     request<{ message: string; user_id: string; name: string }>("/users/login", {
       method: "POST",
@@ -148,7 +158,6 @@ export const api = {
     request<User>(`/users/${id}`, { method: "PUT", body: JSON.stringify(b) }),
   deleteUser: (id: string) => request(`/users/${id}`, { method: "DELETE" }),
 
-  // Projects
   getProjectsByUser: (userId: string) =>
     request<Project[]>(`/projects/user/${userId}`),
   createProject: (body: ProjectCreateBody) =>
@@ -159,20 +168,17 @@ export const api = {
   updateProjectStatus: (id: string, status: ProjectStatus) =>
     request(`/projects/${id}`, { method: "PUT", body: JSON.stringify({ status }) }),
 
-  // 🔔 Nouveau : déclencher le workflow N8N pour un projet
   triggerProjectAgent: (projectId: string, body?: AgentTriggerBody) =>
     request<TriggerResponse>(`/projects/${projectId}/trigger`, {
       method: "POST",
       body: JSON.stringify(body ?? {}),
     }),
 
-  // Notes <-> Projects
   getProjectNotes: (projectId: string) =>
     request<ProjectNote[]>(`/projects/${projectId}/notes`),
   attachNoteToProject: (projectId: string, noteId: string) =>
     request<{ message: string }>(`/projects/${projectId}/notes/${noteId}`, { method: "POST" }),
 
-  // Notes
   getNote: (noteId: string) => request<Note>(`/notes/${noteId}`),
   getUserNotes: (userId: string) => request<Note[]>(`/notes/user/${userId}`),
   createNote: (body: NoteCreateBody) =>
@@ -182,7 +188,6 @@ export const api = {
   deleteNote: (noteId: string) =>
     request<void>(`/notes/${noteId}`, { method: "DELETE" }),
 
-  // Areas
   getAreasByUser: (userId: string) =>
     request<Area[]>(`/areas/user/${userId}`),
   getArea: (areaId: string) =>
@@ -194,19 +199,22 @@ export const api = {
   deleteArea: (areaId: string) =>
     request<void>(`/areas/${areaId}`, { method: "DELETE" }),
 
-  // Notes <-> Areas
   getAreaNotes: (areaId: string) =>
     request<AreaNote[]>(`/areas/${areaId}/notes`),
   attachNoteToArea: (areaId: string, noteId: string) =>
     request<{ message: string }>(`/areas/${areaId}/notes/${noteId}`, { method: "POST" }),
 
-  // AI Agent Chat
   agentChat: (body: { user_id: string; conversation_id?: string | null; message: string }) =>
     request<{ conversation_id?: string; reply?: string }>(CONFIG.endpoints.agentChat(), {
       method: "POST",
       body: JSON.stringify(body),
     }),
+
+  getProjectTodos: (projectId: string) =>
+  request<ProjectTodo[]>(`/projects/${projectId}/agent/todos`),
+
+  getProjectPlanning: (projectId: string) =>
+    request<any>(`/projects/${projectId}/agent/planning`),
 };
 
-// Optionnel: export pour logger l'origine utilisée (debug)
 export { API_ORIGIN };
