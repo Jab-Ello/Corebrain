@@ -359,3 +359,40 @@ def get_last_agent_todos():
     if not last_agent_deadlines:
         raise HTTPException(status_code=404, detail="Aucune To-Do reçue pour le moment.")
     return last_agent_deadlines
+
+###############################################################
+# RÉCEPTION DES CONSEILS ENVOYÉS PAR N8N
+###############################################################
+last_agent_advices = None
+
+@router.post("/{project_id}/agent/advices/latest", status_code=status.HTTP_200_OK)
+async def receive_agent_advices(project_id: str, request: Request, db: Session = Depends(get_db)):
+    """
+    🔹 Reçoit depuis N8N les conseils générés par l'agent Advices.
+    """
+    global last_agent_advices
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projet introuvable")
+
+    payload = await request.json()
+
+    last_agent_advices = {
+        "project_id": project_id,
+        "advices": payload.get("advices", payload),
+        "receivedAt": datetime.utcnow().isoformat()
+    }
+
+    print(f"📥 Conseils reçus pour le projet {project_id} :", last_agent_advices)
+    return {"ok": True, "stored": True, "project_id": project_id}
+
+
+@router.get("/agent/advices/latest", status_code=status.HTTP_200_OK)
+def get_last_agent_advices():
+    """
+    🔹 Permet de consulter les derniers conseils reçus (tous projets confondus).
+    """
+    if not last_agent_advices:
+        raise HTTPException(status_code=404, detail="Aucun conseil reçu pour le moment.")
+    return last_agent_advices

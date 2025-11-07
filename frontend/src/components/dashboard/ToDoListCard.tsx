@@ -6,25 +6,45 @@ import { api, type ProjectTodo } from "@/lib/api";
 
 type Props = { projectId: string; title?: string };
 
-export default function TodoListCard({ projectId, title = "Todos (N8N)" }: Props) {
+export default function TodoListCard({ projectId, title = "To-do" }: Props) {
   const [todos, setTodos] = useState<ProjectTodo[] | null>(null);
+  const [raw, setRaw] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [showRaw, setShowRaw] = useState(false);
+
+  // Normalisation de la réponse backend en format exploitable
+  const normalizeTodos = (data: any): ProjectTodo[] => {
+    if (!data) return [];
+
+    const tasks = data?.todos?.tasks ?? [];
+    if (!Array.isArray(tasks)) return [];
+
+    return tasks.map((t: any, i: number) => ({
+      id: t.id ?? String(i),
+      title: t.title ?? "Sans titre",
+      done: t.status?.toLowerCase() === "done" || false,
+      dueDate: t.due_date ?? null,
+      priority:
+        t.priority_level === "haute" || t.priority_level === 3
+          ? "high"
+          : t.priority_level === "basse" || t.priority_level === 1
+          ? "low"
+          : "medium",
+      noteId: null,
+    }));
+  };
 
   const fetchTodos = async () => {
     try {
       setLoading(true);
       setErr(null);
-      const data = await api.getProjectTodos(projectId);
-      const normalized = (Array.isArray(data) ? data : []).map((t, i) => ({
-        id: t.id ?? String(i),
-        title: t.title ?? "Sans titre",
-        done: !!t.done,
-        dueDate: t.dueDate ?? null,
-        priority: (t.priority as ProjectTodo["priority"]) ?? "medium",
-        noteId: t.noteId ?? null,
-      })) as ProjectTodo[];
+
+      const data = await api.getAgentTodos(); // 🔹 Appelle la bonne route globale
+      console.log("✅ Données reçues :", data);
+
+      setRaw(data); // pour affichage brut si besoin
+      const normalized = normalizeTodos(data);
       setTodos(normalized);
     } catch (e: any) {
       setErr(e?.message ?? "Impossible de récupérer les todos.");
@@ -45,7 +65,9 @@ export default function TodoListCard({ projectId, title = "Todos (N8N)" }: Props
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
         <div>
           <h3 className="text-sm uppercase tracking-wider text-white/60">{title}</h3>
-          <p className="text-sm text-white/80">Récupération depuis le workflow N8N (via backend).</p>
+          <p className="text-sm text-white/80">
+            Récupération depuis le workflow.
+          </p>
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -107,9 +129,9 @@ export default function TodoListCard({ projectId, title = "Todos (N8N)" }: Props
         </ul>
       )}
 
-      {todos && showRaw && (
+      {showRaw && (
         <pre className="mt-3 text-xs whitespace-pre-wrap break-words bg-black/30 rounded-lg p-3 border border-white/10">
-{JSON.stringify(todos, null, 2)}
+{JSON.stringify(raw, null, 2)}
         </pre>
       )}
     </div>

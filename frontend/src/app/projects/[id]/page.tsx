@@ -10,35 +10,93 @@ import AIAgent from "../../../components/dashboard/AiAgent";
 import TodoListCard from "../../../components/dashboard/ToDoListCard";
 import PlanningJsonPanel from "../../../components/dashboard/PlanningJsonPanel";
 
-
 export default function ProjectDetailsPage() {
   const router = useRouter();
-  const { id: projectId } = useParams<{ id: string }>(); 
+  const { id: projectId } = useParams<{ id: string }>();
 
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [status, setStatus] = useState<string>("active");
   const [savingStatus, setSavingStatus] = useState(false);
   const [actionErr, setActionErr] = useState<string | null>(null);
-
   const [triggering, setTriggering] = useState(false);
   const [triggerMsg, setTriggerMsg] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!projectId) return; 
+  // ─── Analyse (N8N) ─────────────────────────────────────────────
+  const [analysis, setAnalysis] = useState<any>(null);
+  const [rawAnalysis, setRawAnalysis] = useState<any>(null);
+  const [loadingAnalysis, setLoadingAnalysis] = useState(false);
+  const [showRawAnalysis, setShowRawAnalysis] = useState(false);
+  const [analysisErr, setAnalysisErr] = useState<string | null>(null);
 
+  // ─── Conseils (Advices) ─────────────────────────────────────────
+  const [advices, setAdvices] = useState<any>(null);
+  const [rawAdvices, setRawAdvices] = useState<any>(null);
+  const [loadingAdvices, setLoadingAdvices] = useState(false);
+  const [showRawAdvices, setShowRawAdvices] = useState(false);
+  const [advicesErr, setAdvicesErr] = useState<string | null>(null);
+
+  async function fetchAnalysis() {
+    try {
+      setLoadingAnalysis(true);
+      setAnalysisErr(null);
+      const data = await api.getAgentAnalysis();
+      setRawAnalysis(data);
+      let parsed;
+      try {
+        parsed =
+          typeof data?.analyse === "string"
+            ? JSON.parse(data.analyse)
+            : data?.analyse ?? {};
+      } catch {
+        parsed = {};
+      }
+      setAnalysis(parsed);
+    } catch (e: any) {
+      setAnalysisErr(e?.message ?? "Impossible de récupérer l'analyse.");
+      setAnalysis(null);
+    } finally {
+      setLoadingAnalysis(false);
+    }
+  }
+
+  async function fetchAdvices() {
+    try {
+      setLoadingAdvices(true);
+      setAdvicesErr(null);
+      const data = await api.getAgentAdvices();
+      setRawAdvices(data);
+      let parsed;
+      try {
+        parsed =
+          typeof data?.advices === "string"
+            ? JSON.parse(data.advices)
+            : data?.advices ?? {};
+      } catch {
+        parsed = {};
+      }
+      setAdvices(parsed);
+    } catch (e: any) {
+      setAdvicesErr(e?.message ?? "Impossible de récupérer les conseils.");
+      setAdvices(null);
+    } finally {
+      setLoadingAdvices(false);
+    }
+  }
+
+  // ─── Chargement projet ──────────────────────────────────────────
+  useEffect(() => {
+    if (!projectId) return;
     const s = getSession();
     if (!s) {
       router.replace("/login");
       return;
     }
-
     (async () => {
       try {
         setLoading(true);
-        const data = await api.getProject(projectId); // ✅ ID string
+        const data = await api.getProject(projectId);
         setProject(data);
         setStatus(data.status ?? "active");
       } catch (e: any) {
@@ -49,6 +107,7 @@ export default function ProjectDetailsPage() {
     })();
   }, [projectId, router]);
 
+  // ─── Changement de statut / archive ─────────────────────────────
   const saveStatus = async () => {
     if (!project) return;
     try {
@@ -81,19 +140,20 @@ export default function ProjectDetailsPage() {
     }
   };
 
+  // ─── Déclenchement N8N (analyse) ────────────────────────────────
   const triggerN8N = async () => {
     if (!project) return;
     try {
       setTriggering(true);
       setTriggerMsg(null);
       await api.triggerProjectAgent(project.id, {
-        action: "analyze",   
-        max_tokens: 1200,    
+        action: "analyze",
+        max_tokens: 1200,
         dry_run: false,
       });
-      setTriggerMsg("Analyse lancée : N8N a bien été déclenché.");
+      setTriggerMsg("Analyse lancée");
     } catch (e: any) {
-      setTriggerMsg(e?.message ?? "Échec du déclenchement N8N.");
+      setTriggerMsg(e?.message ?? "Échec du déclenchement de l'analyse");
     } finally {
       setTriggering(false);
     }
@@ -121,6 +181,7 @@ export default function ProjectDetailsPage() {
 
   return (
     <main className="p-6 space-y-6">
+      {/* ─── HEADER ───────────────────────────────────────────── */}
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-3xl font-bold">{project.name}</h1>
 
@@ -161,6 +222,7 @@ export default function ProjectDetailsPage() {
         </div>
       </div>
 
+      {/* ─── INFOS PROJET (restaurées) ───────────────────────── */}
       <div className="rounded-2xl bg-white/5 border border-white/10 p-6 shadow-lg">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
           <div className="flex items-center gap-3">
@@ -186,9 +248,7 @@ export default function ProjectDetailsPage() {
               </select>
               <button
                 onClick={saveStatus}
-                disabled={
-                  savingStatus || status === (project.status ?? "active")
-                }
+                disabled={savingStatus || status === (project.status ?? "active")}
                 className="rounded-lg border border-white/10 px-2.5 py-1.5 text-xs hover:bg-white/10 disabled:opacity-60"
               >
                 {savingStatus ? "Saving…" : "Save status"}
@@ -200,8 +260,6 @@ export default function ProjectDetailsPage() {
             Créé le {new Date(project.createdAt).toLocaleDateString()}
           </span>
         </div>
-
-        {actionErr && <p className="mb-4 text-xs text-red-300">{actionErr}</p>}
 
         <section className="mb-6">
           <h2 className="text-sm uppercase tracking-wider text-white/60 mb-2">
@@ -249,6 +307,7 @@ export default function ProjectDetailsPage() {
         </section>
       </div>
 
+      {/* ─── WORKFLOW D’ANALYSE ─────────────────────────────── */}
       <div className="rounded-2xl bg-white/5 border border-white/10 p-4 shadow-lg">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
@@ -256,7 +315,7 @@ export default function ProjectDetailsPage() {
               Workflow d’analyse
             </h3>
             <p className="text-sm text-white/80">
-              Lance l’orchestrateur N8N pour analyser ce projet et ses notes liées.
+              Lancer une analyse du projet
             </p>
           </div>
           <button
@@ -264,22 +323,154 @@ export default function ProjectDetailsPage() {
             disabled={triggering}
             className="w-full sm:w-auto rounded-lg bg-white/90 text-black px-4 py-2 text-sm hover:bg-white disabled:opacity-60"
           >
-            {triggering ? "Lancement…" : "Déclencher l’analyse N8N"}
+            {triggering ? "Lancement…" : "Déclencher l’analyse"}
           </button>
         </div>
         {triggerMsg && (
           <p className="mt-3 text-xs text-white/70">{triggerMsg}</p>
         )}
       </div>
-            <PlanningJsonPanel
-        projectId={project.id}
-        className="mt-4"
-        title="Planning (JSON brut)"
-        autoFetch
-        collapsible
-      />
+
+      {/* ─── ANALYSE (N8N) ───────────────────────────────────── */}
+      <div className="rounded-2xl bg-white/5 border border-white/10 p-4 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+          <div>
+            <h3 className="text-sm uppercase tracking-wider text-white/60">
+              Analyse
+            </h3>
+            <p className="text-sm text-white/80">
+              Récupération depuis le workflow.
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchAnalysis}
+              disabled={loadingAnalysis}
+              className="rounded-lg bg-white/90 text-black px-3 py-2 text-sm hover:bg-white disabled:opacity-60"
+            >
+              {loadingAnalysis ? "Rafraîchissement…" : "Rafraîchir"}
+            </button>
+            <button
+              onClick={() => setShowRawAnalysis((s) => !s)}
+              className="rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/10"
+            >
+              {showRawAnalysis ? "Masquer JSON" : "Voir JSON brut"}
+            </button>
+          </div>
+        </div>
+
+        {analysisErr && <p className="mb-3 text-xs text-red-300">{analysisErr}</p>}
+        {!analysis && !analysisErr && (
+          <p className="text-sm text-white/60">Aucune donnée d'analyse.</p>
+        )}
+
+        {analysis && !showRawAnalysis && (
+          <div className="text-sm text-white/90 space-y-3">
+            {analysis.project_summary && (
+              <div>
+                <h4 className="text-white/70 font-semibold mb-1">Résumé du projet</h4>
+                <p>{analysis.project_summary}</p>
+              </div>
+            )}
+            {analysis.objectives && (
+              <div>
+                <h4 className="text-white/70 font-semibold mb-1">Objectifs</h4>
+                <p>{analysis.objectives}</p>
+              </div>
+            )}
+            {analysis.key_context && (
+              <div>
+                <h4 className="text-white/70 font-semibold mb-1">Contexte clé</h4>
+                <p>{analysis.key_context}</p>
+              </div>
+            )}
+            {analysis.unknowns && (
+              <div>
+                <h4 className="text-white/70 font-semibold mb-1">Points inconnus</h4>
+                <ul className="list-disc pl-5 text-white/80">
+                  {Array.isArray(analysis.unknowns)
+                    ? analysis.unknowns.map((u: string, i: number) => (
+                        <li key={i}>{u}</li>
+                      ))
+                    : Object.values(analysis.unknowns).map((v: any, i: number) => (
+                        <li key={i}>{String(v)}</li>
+                      ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {showRawAnalysis && (
+          <pre className="mt-3 text-xs whitespace-pre-wrap break-words bg-black/30 rounded-lg p-3 border border-white/10">
+{JSON.stringify(rawAnalysis, null, 2)}
+          </pre>
+        )}
+      </div>
+
+      {/* ─── TO-DO ───────────────────────────────────────────── */}
       <TodoListCard projectId={project.id} />
 
+      {/* ─── CONSEILS (ADVICES) ─────────────────────────────── */}
+      <div className="rounded-2xl bg-white/5 border border-white/10 p-4 shadow-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-3">
+          <div>
+            <h3 className="text-sm uppercase tracking-wider text-white/60">
+              Conseils (Advices)
+            </h3>
+            <p className="text-sm text-white/80">Liste des derniers conseils</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={fetchAdvices}
+              disabled={loadingAdvices}
+              className="rounded-lg bg-white/90 text-black px-3 py-2 text-sm hover:bg-white disabled:opacity-60"
+            >
+              {loadingAdvices ? "Rafraîchissement…" : "Rafraîchir"}
+            </button>
+            <button
+              onClick={() => setShowRawAdvices((s) => !s)}
+              className="rounded-lg border border-white/10 px-3 py-2 text-sm hover:bg-white/10"
+            >
+              {showRawAdvices ? "Masquer JSON" : "Voir JSON brut"}
+            </button>
+          </div>
+        </div>
+
+        {advicesErr && <p className="mb-3 text-xs text-red-300">{advicesErr}</p>}
+        {!advices && !advicesErr && (
+          <p className="text-sm text-white/60">Aucun conseil disponible.</p>
+        )}
+
+        {advices && !showRawAdvices && (
+          <div className="text-sm text-white/90 space-y-3">
+            {advices.summary && (
+              <div>
+                <h4 className="text-white/70 font-semibold mb-1">Résumé</h4>
+                <p>{advices.summary}</p>
+              </div>
+            )}
+            {advices.next_steps && Array.isArray(advices.next_steps) && (
+              <div>
+                <h4 className="text-white/70 font-semibold mb-1">Prochaines étapes</h4>
+                <ul className="list-disc pl-5 text-white/80">
+                  {advices.next_steps.map((step: string, i: number) => (
+                    <li key={i}>{step}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {showRawAdvices && (
+          <pre className="mt-3 text-xs whitespace-pre-wrap break-words bg-black/30 rounded-lg p-3 border border-white/10">
+{JSON.stringify(rawAdvices, null, 2)}
+          </pre>
+        )}
+      </div>
+
+      {/* ───AI ──── */}
       <AIAgent projectId={project.id} />
     </main>
   );
