@@ -8,6 +8,8 @@ import { api, type Project } from "../../../lib/api";
 import { getSession } from "../../../lib/session";
 import AIAgent from "../../../components/dashboard/AiAgent";
 import TodoListCard from "../../../components/dashboard/ToDoListCard";
+import PlanningJsonPanel from "../../../components/dashboard/PlanningJsonPanel";
+
 
 export default function ProjectDetailsPage() {
   const router = useRouter();
@@ -269,6 +271,13 @@ export default function ProjectDetailsPage() {
           <p className="mt-3 text-xs text-white/70">{triggerMsg}</p>
         )}
       </div>
+            <PlanningJsonPanel
+        projectId={project.id}
+        className="mt-4"
+        title="Planning (JSON brut)"
+        autoFetch
+        collapsible
+      />
       <TodoListCard projectId={project.id} />
 
       <AIAgent projectId={project.id} />

@@ -89,11 +89,6 @@ export default function EditProjectPage() {
           plannedEndDate: project.plannedEndDate ?? "",
         }}
       />
-
-      <div style={{border:'1px dashed #666', padding:6, margin:'8px 0', color:'#aaa'}}>
-  DEBUG: edit page mounted
-</div>
-
       <section className="mt-6">
         <h2 className="px-1 pb-2 text-sm font-medium text-white/60">PLANNING (N8N)</h2>
         <PlanningJsonPanel
